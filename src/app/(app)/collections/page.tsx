@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { getCollections } from "@/lib/mock-data";
+import { fetchCollections } from "@/lib/api";
 
 const filters = ["All", "Pinned", "Recently updated", "Shared"];
 
 export default async function CollectionsPage() {
-  const allCollections = await getCollections();
+  const allCollections = await fetchCollections();
 
   return (
     <div className="flex flex-col gap-8 lg:flex-row">
