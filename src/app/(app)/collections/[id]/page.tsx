@@ -1,18 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ExplorerTree, type ExplorerNode } from "@/components/explorer-tree";
 import {
   getCollectionById,
   getFoldersByCollection,
   getNotesByCollection,
 } from "@/lib/mock-data";
-import type { Folder } from "@/lib/types";
+import type { Folder, Note } from "@/lib/types";
 
 export default async function CollectionDetailPage({
   params,
+  searchParams,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { id } = params;
+  const [{ id }, currentSearchParams] = await Promise.all([params, searchParams]);
   const collection = await getCollectionById(id);
 
   if (!collection) {
@@ -23,6 +26,20 @@ export default async function CollectionDetailPage({
     getFoldersByCollection(id),
     getNotesByCollection(id),
   ]);
+  const folderMap = new Map(collectionFolders.map((folder) => [folder.id, folder]));
+  const requestedFolderId =
+    typeof currentSearchParams.folder === "string" ? currentSearchParams.folder : undefined;
+  const fallbackFolderId = requestedFolderId ?? collectionFolders[0]?.id ?? undefined;
+  const selectedFolder = fallbackFolderId ? folderMap.get(fallbackFolderId) : undefined;
+  const filteredNotes = fallbackFolderId
+    ? collectionNotes.filter((note) => note.folderId === fallbackFolderId)
+    : collectionNotes;
+  const explorerNodes = buildExplorerTree(
+    collection.id,
+    collection.name,
+    collectionFolders,
+    collectionNotes,
+  );
 
   return (
     <div className="space-y-6">
@@ -51,85 +68,22 @@ export default async function CollectionDetailPage({
       </section>
 
       <div className="flex flex-col gap-4 lg:flex-row">
-        <FolderTree folders={collectionFolders} />
-        <NoteList notes={collectionNotes} />
-      </div>
-    </div>
-  );
-}
-
-type FolderNode = Folder & { children: FolderNode[] };
-
-function buildFolderTree(folders: Folder[]): FolderNode[] {
-  const nodes: Record<string, FolderNode> = {};
-  const roots: FolderNode[] = [];
-
-  folders.forEach((folder) => {
-    nodes[folder.id] = { ...folder, children: [] };
-  });
-
-  Object.values(nodes).forEach((node) => {
-    if (node.parentFolderId && nodes[node.parentFolderId]) {
-      nodes[node.parentFolderId].children.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
-
-  return roots;
-}
-
-function FolderTree({ folders }: { folders: Folder[] }) {
-  const tree = buildFolderTree(folders);
-
-  return (
-    <aside className="w-full rounded-lg border border-border bg-card p-4 shadow-sm lg:w-72">
-      <header className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <span>Folders</span>
-        <span className="text-[10px]">Explorer</span>
-      </header>
-      <div className="mt-4 space-y-1 text-sm">
-        <button className="flex w-full items-center rounded-md px-2 py-1 text-left font-medium text-foreground transition hover:bg-muted">
-          / (root)
-        </button>
-        {tree.map((node) => (
-          <FolderTreeItem key={node.id} node={node} depth={0} />
-        ))}
-      </div>
-    </aside>
-  );
-}
-
-function FolderTreeItem({ node, depth }: { node: FolderNode; depth: number }) {
-  return (
-    <div>
-      <button
-        className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-muted-foreground transition hover:bg-muted"
-        style={{ paddingLeft: `${depth * 12 + 16}px` }}
-      >
-        <span className="text-xs text-muted-foreground/70">▸</span>
-        {node.name}
-      </button>
-      {node.children.length > 0 && (
-        <div>
-          {node.children.map((child) => (
-            <FolderTreeItem key={child.id} node={child} depth={depth + 1} />
-          ))}
+        <div className="lg:w-80 xl:w-96">
+          <ExplorerTree nodes={explorerNodes} selectedFolderId={fallbackFolderId} />
         </div>
-      )}
+        <div className="flex-1">
+          <NoteList notes={filteredNotes} folder={selectedFolder} />
+        </div>
+      </div>
     </div>
   );
 }
 
-function NoteList({
-  notes,
-}: {
-  notes: Awaited<ReturnType<typeof getNotesByCollection>>;
-}) {
+function NoteList({ notes, folder }: { notes: Note[]; folder?: Folder }) {
   if (notes.length === 0) {
     return (
       <section className="flex-1 rounded-lg border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
-        ノートがまだありません。
+        選択中フォルダにはまだノートがありません。
       </section>
     );
   }
@@ -139,7 +93,7 @@ function NoteList({
       <div className="flex items-center justify-between border-b border-border px-6 py-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Explorer
+            {folder ? folder.name : "Notes"}
           </p>
           <p className="text-sm text-muted-foreground">
             {notes.length} files
@@ -154,19 +108,112 @@ function NoteList({
           <Link
             key={note.id}
             href={`/notes/${note.id}`}
-            className="grid grid-cols-[1fr,120px,100px] items-center gap-4 px-6 py-3 text-sm transition hover:bg-muted/40"
+            className="block px-6 py-4 transition hover:bg-muted/40"
           >
-            <div>
-              <p className="font-medium text-foreground">{note.title}</p>
-              <p className="text-xs text-muted-foreground">{note.tags.join(", ")}</p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground">{note.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {note.tags.join(", ")}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 text-xs text-muted-foreground">
+                <span className="rounded-full border border-border px-2 py-0.5 uppercase tracking-wide">
+                  {note.language}
+                </span>
+                <span>
+                  更新: {new Date(note.updatedAt).toLocaleDateString("ja-JP")}
+                </span>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">{note.language}</p>
-            <p className="text-right text-xs text-muted-foreground">
-              {new Date(note.updatedAt).toLocaleDateString("ja-JP")}
+            <p className="mt-3 text-sm text-muted-foreground">
+              {note.note}
             </p>
+            <pre className="mt-3 overflow-x-auto rounded-md bg-muted/50 p-3 text-[12px] text-muted-foreground">
+              {note.code.split("\n").slice(0, 5).join("\n")}
+            </pre>
           </Link>
         ))}
       </div>
     </section>
   );
+}
+
+function buildExplorerTree(
+  collectionId: string,
+  collectionName: string,
+  folders: Folder[],
+  notes: Note[],
+): ExplorerNode[] {
+  type FolderNode = ExplorerNode & { type: "folder"; children: ExplorerNode[] };
+
+  const folderNodes = new Map<string, FolderNode>();
+
+  folders.forEach((folder) => {
+    folderNodes.set(folder.id, {
+      id: folder.id,
+      label: folder.name,
+      type: "folder",
+      children: [],
+    });
+  });
+
+  const roots: ExplorerNode[] = [];
+
+  folders.forEach((folder) => {
+    const node = folderNodes.get(folder.id)!;
+    if (folder.parentFolderId && folderNodes.has(folder.parentFolderId)) {
+      folderNodes.get(folder.parentFolderId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+
+  notes.forEach((note) => {
+    const noteNode: ExplorerNode = {
+      id: note.id,
+      label: note.title,
+      type: "note",
+      meta: {
+        href: `/notes/${note.id}`,
+        language: note.language,
+      },
+    };
+
+    if (note.folderId && folderNodes.has(note.folderId)) {
+      folderNodes.get(note.folderId)!.children.push(noteNode);
+    } else {
+      roots.push(noteNode);
+    }
+  });
+
+  const explorerRoot: FolderNode = {
+    id: `collection-${collectionId}`,
+    label: collectionName,
+    type: "folder",
+    children: roots,
+    meta: {
+      badge: `${notes.length} notes`,
+    },
+  };
+
+  annotateFolderCounts(explorerRoot);
+
+  return [explorerRoot];
+}
+
+function annotateFolderCounts(node: ExplorerNode): number {
+  if (node.type === "note") {
+    return 1;
+  }
+
+  const total =
+    node.children?.reduce((sum, child) => sum + annotateFolderCounts(child), 0) ?? 0;
+
+  node.meta = {
+    ...node.meta,
+    badge: total === 1 ? "1 note" : `${total} notes`,
+  };
+
+  return total;
 }

@@ -7,14 +7,6 @@ const mainNav = [
   { name: "ノート", href: "/notes/alpha" },
 ];
 
-const sidebarNav = [
-  { section: "Workspace", items: ["Overview", "Insights", "Activity"] },
-  {
-    section: "Collections",
-    items: ["Pinned", "Archive", "Shared"],
-  },
-];
-
 function AppHeader() {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-card/90 backdrop-blur">
@@ -57,39 +49,11 @@ function AppHeader() {
   );
 }
 
-function Sidebar() {
-  return (
-    <aside className="hidden w-64 border-r border-border bg-muted/40 px-4 py-6 text-sm text-muted-foreground lg:block">
-      {sidebarNav.map((section) => (
-        <div key={section.section} className="mb-6">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
-            {section.section}
-          </p>
-          <div className="space-y-1">
-            {section.items.map((item) => (
-              <button
-                key={item}
-                className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition hover:bg-muted"
-              >
-                {item}
-                <span className="text-[10px] text-muted-foreground/70">···</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
-    </aside>
-  );
-}
-
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-app text-foreground">
       <AppHeader />
-      <div className="mx-auto flex w-full max-w-6xl gap-6 px-6 py-10">
-        <Sidebar />
-        <main className="flex-1">{children}</main>
-      </div>
+      <main className="mx-auto w-full max-w-6xl px-6 py-10">{children}</main>
     </div>
   );
 }
