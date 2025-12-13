@@ -3,11 +3,11 @@ import { notFound } from "next/navigation";
 import { ExplorerTree } from "@/components/explorer-tree";
 import { CodeViewer } from "@/components/code-viewer";
 import {
-  getCollectionById,
-  getFoldersByCollection,
-  getNoteById,
-  getNotesByCollection,
-} from "@/lib/mock-data";
+  fetchCollectionById,
+  fetchFoldersByCollection,
+  fetchNoteById,
+  fetchNotesByCollection,
+} from "@/lib/api";
 import { buildExplorerTree } from "@/lib/explorer";
 
 export default async function NoteDetailPage({
@@ -18,16 +18,16 @@ export default async function NoteDetailPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const [{ id }, currentSearchParams] = await Promise.all([params, searchParams]);
-  const note = await getNoteById(id);
+  const note = await fetchNoteById(id);
 
   if (!note) {
     notFound();
   }
 
   const [collection, folders, collectionNotes] = await Promise.all([
-    getCollectionById(note.collectionId),
-    getFoldersByCollection(note.collectionId),
-    getNotesByCollection(note.collectionId),
+    fetchCollectionById(note.collectionId),
+    fetchFoldersByCollection(note.collectionId),
+    fetchNotesByCollection(note.collectionId),
   ]);
 
   const explorerNodes = buildExplorerTree(

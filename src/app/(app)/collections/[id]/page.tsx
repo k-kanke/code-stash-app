@@ -2,10 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExplorerTree } from "@/components/explorer-tree";
 import {
-  getCollectionById,
-  getFoldersByCollection,
-  getNotesByCollection,
-} from "@/lib/mock-data";
+  fetchCollectionById,
+  fetchFoldersByCollection,
+  fetchNotesByCollection,
+} from "@/lib/api";
 import type { Folder, Note } from "@/lib/types";
 import { buildExplorerTree } from "@/lib/explorer";
 
@@ -17,15 +17,15 @@ export default async function CollectionDetailPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const [{ id }, currentSearchParams] = await Promise.all([params, searchParams]);
-  const collection = await getCollectionById(id);
+  const collection = await fetchCollectionById(id);
 
   if (!collection) {
     notFound();
   }
 
   const [collectionFolders, collectionNotes] = await Promise.all([
-    getFoldersByCollection(id),
-    getNotesByCollection(id),
+    fetchFoldersByCollection(id),
+    fetchNotesByCollection(id),
   ]);
   const folderMap = new Map(collectionFolders.map((folder) => [folder.id, folder]));
   const requestedFolderId =

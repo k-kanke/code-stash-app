@@ -1,23 +1,141 @@
-import type { Collection } from "./types";
+import type { Collection, Folder, Note } from "./types";
 import { getServerApiBase } from "./server-api";
 
+type RawCollection = {
+  id: string;
+  name: string;
+  description?: string;
+  note_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type RawFolder = {
+  id: string;
+  collection_id: string;
+  parent_folder_id: string | null;
+  name: string;
+};
+
+type RawNoteSummary = {
+  id: string;
+  collection_id?: string;
+  folder_id?: string | null;
+  title: string;
+  language: string;
+  tags: string[];
+  snippet?: string;
+  updated_at?: string;
+};
+
+type RawNoteDetail = {
+  id: string;
+  collection_id: string;
+  folder_id: string | null;
+  title: string;
+  language: string;
+  tags: string[];
+  code: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
 function getUserId() {
-  const userId =
+  return (
     process.env.NEXT_PUBLIC_USER_ID ??
     process.env.USER_ID ??
-    "11111111-1111-1111-1111-111111111111";
-  return userId;
+    "11111111-1111-1111-1111-111111111111"
+  );
 }
 
-export async function fetchCollections(): Promise<Collection[]> {
-  const url = new URL(`${getServerApiBase()}/api/collections`);
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const url = new URL(`${getServerApiBase()}${path}`);
   url.searchParams.set("user_id", getUserId());
 
   const response = await fetch(url, {
     cache: "no-store",
+    ...init,
   });
+
   if (!response.ok) {
-    throw new Error("Failed to fetch collections");
+    throw new Error(`Failed to fetch ${path}`);
   }
-  return response.json();
+
+  return (await response.json()) as T;
+}
+
+function mapCollection(data: RawCollection): Collection {
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description ?? "",
+    noteCount: data.note_count ?? 0,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+function mapFolder(data: RawFolder): Folder {
+  return {
+    id: data.id,
+    collectionId: data.collection_id,
+    parentFolderId: data.parent_folder_id,
+    name: data.name,
+  };
+}
+
+function mapNoteSummary(data: RawNoteSummary, collectionId?: string): Note {
+  return {
+    id: data.id,
+    collectionId: data.collection_id ?? collectionId ?? "",
+    folderId: data.folder_id ?? null,
+    title: data.title,
+    language: data.language,
+    tags: data.tags ?? [],
+    code: "",
+    note: data.snippet ?? "",
+    createdAt: data.updated_at ?? "",
+    updatedAt: data.updated_at ?? "",
+  };
+}
+
+function mapNoteDetail(data: RawNoteDetail): Note {
+  return {
+    id: data.id,
+    collectionId: data.collection_id,
+    folderId: data.folder_id,
+    title: data.title,
+    language: data.language,
+    tags: data.tags ?? [],
+    code: data.code,
+    note: data.note,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+export async function fetchCollections(): Promise<Collection[]> {
+  const data = await request<RawCollection[]>("/api/collections");
+  return data.map(mapCollection);
+}
+
+export async function fetchCollectionById(id: string): Promise<Collection> {
+  const data = await request<RawCollection>(`/api/collections/${id}`);
+  return mapCollection(data);
+}
+
+export async function fetchFoldersByCollection(id: string): Promise<Folder[]> {
+  const data = await request<RawFolder[]>(`/api/collections/${id}/folders`);
+  return data.map(mapFolder);
+}
+
+export async function fetchNotesByCollection(id: string): Promise<Note[]> {
+  const data = await request<RawNoteSummary[]>(`/api/collections/${id}/notes`);
+  return data.map((note) => mapNoteSummary(note, id));
+}
+
+export async function fetchNoteById(id: string): Promise<Note> {
+  const data = await request<RawNoteDetail>(`/api/note/${id}`);
+  return mapNoteDetail(data);
 }
