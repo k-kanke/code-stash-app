@@ -39,12 +39,9 @@ export default async function CollectionsPage() {
             <p className="text-xs uppercase tracking-widest text-muted-foreground">
               Collections
             </p>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              あなたの CodeStash
-            </h1>
           </div>
           <button className="rounded-md border border-border px-4 py-2 text-sm font-medium">
-            新しいコレクション
+            New
           </button>
         </header>
 

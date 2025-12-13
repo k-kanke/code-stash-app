@@ -53,7 +53,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-app text-foreground">
       <AppHeader />
-      <main className="mx-auto w-full max-w-6xl px-6 py-10">{children}</main>
+      <main className="mx-auto w-full max-w-[1920px] px-6 py-10 lg:px-14">{children}</main>
     </div>
   );
 }

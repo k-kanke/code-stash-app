@@ -1,35 +1,57 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ExplorerTree } from "@/components/explorer-tree";
 import { CodeViewer } from "@/components/code-viewer";
-import { getCollectionById, getNoteById } from "@/lib/mock-data";
+import {
+  getCollectionById,
+  getFoldersByCollection,
+  getNoteById,
+  getNotesByCollection,
+} from "@/lib/mock-data";
+import { buildExplorerTree } from "@/lib/explorer";
 
 export default async function NoteDetailPage({
   params,
+  searchParams,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { id } = params;
+  const [{ id }, currentSearchParams] = await Promise.all([params, searchParams]);
   const note = await getNoteById(id);
 
   if (!note) {
     notFound();
   }
 
-  const collection = await getCollectionById(note.collectionId);
+  const [collection, folders, collectionNotes] = await Promise.all([
+    getCollectionById(note.collectionId),
+    getFoldersByCollection(note.collectionId),
+    getNotesByCollection(note.collectionId),
+  ]);
+
+  const explorerNodes = buildExplorerTree(
+    note.collectionId,
+    collection?.name ?? "Collection",
+    folders,
+    collectionNotes,
+  );
+
+  const selectedFolderId =
+    typeof currentSearchParams.folder === "string"
+      ? currentSearchParams.folder
+      : note.folderId ?? undefined;
 
   return (
     <article className="space-y-6">
-      <header className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <header className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
           <Link href="/collections" className="hover:underline">
             Collections
           </Link>
           <span>/</span>
           {collection ? (
-            <Link
-              href={`/collections/${collection.id}`}
-              className="hover:underline"
-            >
+            <Link href={`/collections/${collection.id}`} className="hover:underline">
               {collection.name}
             </Link>
           ) : (
@@ -38,29 +60,30 @@ export default async function NoteDetailPage({
           <span>/</span>
           <span>{note.title}</span>
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-semibold leading-tight">{note.title}</h1>
-            <p className="text-sm text-muted-foreground">
-              Updated {new Date(note.updatedAt).toLocaleString("ja-JP")}
+            <h1 className="text-xl font-semibold leading-tight">{note.title}</h1>
+          </div>
+          <div className="flex gap-6 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <p>
+              <span className="text-[9px]">Created</span>{" "}
+              <span className="text-foreground">
+                {new Date(note.createdAt).toLocaleDateString("ja-JP")}
+              </span>
+            </p>
+            <p>
+              <span className="text-[9px]">Updated</span>{" "}
+              <span className="text-foreground">
+                {new Date(note.updatedAt).toLocaleDateString("ja-JP")}
+              </span>
             </p>
           </div>
-          <div className="flex gap-3 text-sm text-muted-foreground">
-            <div>
-              <p className="text-xs uppercase tracking-wide">Language</p>
-              <p className="font-medium text-foreground">{note.language}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide">Created</p>
-              <p>{new Date(note.createdAt).toLocaleDateString("ja-JP")}</p>
-            </div>
-          </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-1">
           {note.tags.map((tag) => (
             <span
               key={tag}
-              className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground"
+              className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground"
             >
               {tag}
             </span>
@@ -68,19 +91,43 @@ export default async function NoteDetailPage({
         </div>
       </header>
 
-      <CodeViewer code={note.code} language={note.language} />
-
-      <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <header className="mb-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Memo
-          </p>
-          <h2 className="text-lg font-semibold">コードノート</h2>
-        </header>
-        <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
-          <p className="whitespace-pre-line text-foreground">{note.note}</p>
+      <div className="grid gap-4 lg:grid-cols-12 xl:grid-cols-12">
+        <div className="lg:col-span-2">
+          <ExplorerTree nodes={explorerNodes} activeNoteId={note.id} selectedFolderId={selectedFolderId} />
         </div>
-      </section>
+
+        <section className="space-y-2 lg:col-span-6 xl:col-span-7">
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            <span>Code</span>
+            <span className="text-muted-foreground/70">Read only</span>
+          </div>
+          <CodeViewer code={note.code} language={note.language} />
+        </section>
+
+        <aside className="space-y-4 lg:col-span-4 xl:col-span-3">
+          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+            <header className="mb-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Notes</p>
+              <h2 className="text-lg font-semibold">メモ</h2>
+            </header>
+            <textarea
+              defaultValue={note.note}
+              className="h-48 w-full rounded-md border border-border bg-muted/40 p-3 text-sm text-foreground outline-none"
+              placeholder="コードの背景や補足を書きましょう"
+            />
+            <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+              <span>自動保存はまだありません</span>
+              <button
+                type="button"
+                disabled
+                className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground"
+              >
+                Save (coming soon)
+              </button>
+            </div>
+          </section>
+        </aside>
+      </div>
     </article>
   );
 }

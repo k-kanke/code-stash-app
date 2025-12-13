@@ -88,11 +88,12 @@ export function ExplorerTree({
             <button
               type="button"
               onClick={() => toggleFolder(node.id)}
-              className="text-xs text-muted-foreground"
+              className="text-base text-muted-foreground transition hover:text-foreground"
               aria-label={isOpen ? "collapse folder" : "expand folder"}
             >
-              {isOpen ? "▾" : "▸"}
+              {isOpen ? "⌄" : "›"}
             </button>
+            <FolderIcon open={isOpen} />
             <button
               type="button"
               onClick={() => handleFolderSelect(node.id)}
@@ -100,11 +101,6 @@ export function ExplorerTree({
             >
               {node.label}
             </button>
-            {node.meta?.badge ? (
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80">
-                {node.meta.badge}
-              </span>
-            ) : null}
           </div>
           {isOpen && node.children && (
             <div className="space-y-1">{node.children.map((child) => renderNode(child, depth + 1))}</div>
@@ -124,13 +120,8 @@ export function ExplorerTree({
         }`}
         style={{ paddingLeft: `${padding + 12}px` }}
       >
-        <span className="text-xs text-muted-foreground/70">●</span>
+        <FileIcon />
         <span className="flex-1 truncate text-foreground">{node.label}</span>
-        {node.meta?.language ? (
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            {node.meta.language}
-          </span>
-        ) : null}
       </Link>
     );
   };
@@ -143,5 +134,21 @@ export function ExplorerTree({
       </div>
       <div className="space-y-1 p-2">{nodes.map((node) => renderNode(node))}</div>
     </aside>
+  );
+}
+
+function FolderIcon({ open }: { open: boolean }) {
+  return (
+    <span className="flex h-4 w-4 items-center justify-center text-muted-foreground">
+      {open ? "📂" : "📁"}
+    </span>
+  );
+}
+
+function FileIcon() {
+  return (
+    <span className="flex h-4 w-4 items-center justify-center text-muted-foreground">
+      📄
+    </span>
   );
 }

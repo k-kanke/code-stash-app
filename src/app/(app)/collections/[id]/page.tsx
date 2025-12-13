@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExplorerTree, type ExplorerNode } from "@/components/explorer-tree";
+import { ExplorerTree } from "@/components/explorer-tree";
 import {
   getCollectionById,
   getFoldersByCollection,
   getNotesByCollection,
 } from "@/lib/mock-data";
 import type { Folder, Note } from "@/lib/types";
+import { buildExplorerTree } from "@/lib/explorer";
 
 export default async function CollectionDetailPage({
   params,
@@ -34,12 +35,7 @@ export default async function CollectionDetailPage({
   const filteredNotes = fallbackFolderId
     ? collectionNotes.filter((note) => note.folderId === fallbackFolderId)
     : collectionNotes;
-  const explorerNodes = buildExplorerTree(
-    collection.id,
-    collection.name,
-    collectionFolders,
-    collectionNotes,
-  );
+  const explorerNodes = buildExplorerTree(collection.id, collection.name, collectionFolders, collectionNotes);
 
   return (
     <div className="space-y-6">
@@ -67,11 +63,11 @@ export default async function CollectionDetailPage({
         </div>
       </section>
 
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <div className="lg:w-80 xl:w-96">
+      <div className="grid gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-3 xl:col-span-2">
           <ExplorerTree nodes={explorerNodes} selectedFolderId={fallbackFolderId} />
         </div>
-        <div className="flex-1">
+        <div className="lg:col-span-9 xl:col-span-10">
           <NoteList notes={filteredNotes} folder={selectedFolder} />
         </div>
       </div>
@@ -137,83 +133,4 @@ function NoteList({ notes, folder }: { notes: Note[]; folder?: Folder }) {
       </div>
     </section>
   );
-}
-
-function buildExplorerTree(
-  collectionId: string,
-  collectionName: string,
-  folders: Folder[],
-  notes: Note[],
-): ExplorerNode[] {
-  type FolderNode = ExplorerNode & { type: "folder"; children: ExplorerNode[] };
-
-  const folderNodes = new Map<string, FolderNode>();
-
-  folders.forEach((folder) => {
-    folderNodes.set(folder.id, {
-      id: folder.id,
-      label: folder.name,
-      type: "folder",
-      children: [],
-    });
-  });
-
-  const roots: ExplorerNode[] = [];
-
-  folders.forEach((folder) => {
-    const node = folderNodes.get(folder.id)!;
-    if (folder.parentFolderId && folderNodes.has(folder.parentFolderId)) {
-      folderNodes.get(folder.parentFolderId)!.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
-
-  notes.forEach((note) => {
-    const noteNode: ExplorerNode = {
-      id: note.id,
-      label: note.title,
-      type: "note",
-      meta: {
-        href: `/notes/${note.id}`,
-        language: note.language,
-      },
-    };
-
-    if (note.folderId && folderNodes.has(note.folderId)) {
-      folderNodes.get(note.folderId)!.children.push(noteNode);
-    } else {
-      roots.push(noteNode);
-    }
-  });
-
-  const explorerRoot: FolderNode = {
-    id: `collection-${collectionId}`,
-    label: collectionName,
-    type: "folder",
-    children: roots,
-    meta: {
-      badge: `${notes.length} notes`,
-    },
-  };
-
-  annotateFolderCounts(explorerRoot);
-
-  return [explorerRoot];
-}
-
-function annotateFolderCounts(node: ExplorerNode): number {
-  if (node.type === "note") {
-    return 1;
-  }
-
-  const total =
-    node.children?.reduce((sum, child) => sum + annotateFolderCounts(child), 0) ?? 0;
-
-  node.meta = {
-    ...node.meta,
-    badge: total === 1 ? "1 note" : `${total} notes`,
-  };
-
-  return total;
 }

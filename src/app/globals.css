@@ -48,3 +48,9 @@ body {
 ::selection {
   background: rgba(56, 189, 248, 0.3);
 }
+
+pre[class*="language-"],
+code[class*="language-"] {
+  background-color: #ffffff !important;
+  color: #0f172a;
+}

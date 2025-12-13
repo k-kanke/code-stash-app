@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import Prism from "prismjs";
 import "prismjs/components/prism-typescript";
-import "prismjs/components/prism-tsx";
 import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-jsx";
+import "prismjs/components/prism-tsx";
 import "prismjs/components/prism-python";
 import "prismjs/components/prism-json";
 import "prismjs/components/prism-bash";
@@ -30,6 +31,7 @@ export function CodeViewer({ code, language }: Props) {
     ? languageMap[language.toLowerCase()] ?? language.toLowerCase()
     : "typescript";
   const grammar = Prism.languages[normalized] ?? Prism.languages.typescript;
+  const lines = code.split("\n");
 
   const highlighted = useMemo(() => {
     return Prism.highlight(code, grammar, normalized);
@@ -46,26 +48,42 @@ export function CodeViewer({ code, language }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-      <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
-        <span className="uppercase tracking-wide">{language ?? normalized}</span>
+    <div className="relative overflow-hidden rounded-lg border border-border bg-white">
+      <div className="absolute right-3 top-3 flex gap-2">
+        <button
+          type="button"
+          className="rounded border border-border bg-white/80 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground"
+        >
+          edit
+        </button>
         <button
           onClick={handleCopy}
-          className="rounded-md border border-border px-2 py-1 text-[10px] uppercase tracking-wide"
+          className="rounded border border-border bg-white/80 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground"
           type="button"
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? "copied" : "copy"}
         </button>
       </div>
-      <pre
-        className={`language-${normalized} overflow-x-auto bg-card p-4 text-[13px] leading-relaxed`}
-        tabIndex={0}
-      >
-        <code
-          className={`language-${normalized}`}
-          dangerouslySetInnerHTML={{ __html: highlighted }}
-        />
-      </pre>
+      <div className="flex bg-white text-[11px] font-mono leading-snug" style={{ fontSize: "0.72rem" }}>
+        <ol className="select-none bg-white px-4 py-4 text-right text-muted-foreground">
+          {lines.map((_, index) => (
+            <li key={index} className="h-4 leading-snug">
+              {index + 1}
+            </li>
+          ))}
+        </ol>
+        <pre
+          className={`language-${normalized} overflow-x-auto p-4 pr-16 text-muted-foreground`}
+          tabIndex={0}
+          style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
+        >
+          <code
+            className={`language-${normalized}`}
+            dangerouslySetInnerHTML={{ __html: highlighted }}
+            style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
+          />
+        </pre>
+      </div>
     </div>
   );
 }
