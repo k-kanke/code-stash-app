@@ -160,8 +160,11 @@ export function CodeViewer({ code, language, noteId }: Props) {
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            className="h-full min-h-60 w-full flex-1 border-l border-border/70 bg-white p-4 font-mono text-[0.72rem] leading-snug text-foreground outline-none"
+            className="w-full flex-1 border-l border-border/70 bg-white p-4 font-mono text-[0.72rem] leading-snug text-foreground outline-none"
             spellCheck="false"
+            style={{
+              height: `${Math.max(lines.length, 6) * 1.4}em`,
+            }}
           />
         ) : (
           <pre
