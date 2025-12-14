@@ -106,7 +106,7 @@ export default async function NoteDetailPage({
             <span>Code</span>
             <span className="text-muted-foreground/70">Read only</span>
           </div>
-          <CodeViewer code={note.code} language={note.language} />
+          <CodeViewer code={note.code} language={note.language} noteId={note.id} />
         </section>
 
         <aside className="space-y-4 lg:col-span-3 xl:col-span-2">

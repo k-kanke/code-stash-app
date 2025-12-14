@@ -92,3 +92,58 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create note" }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const noteId = typeof body?.noteId === "string" ? body.noteId.trim() : "";
+    if (!noteId) {
+      return NextResponse.json({ error: "noteId is required" }, { status: 400 });
+    }
+
+    const payload: Record<string, unknown> = {};
+    if (typeof body?.code === "string") {
+      payload.code = body.code;
+    }
+    if (typeof body?.title === "string") {
+      payload.title = body.title;
+    }
+    if (typeof body?.language === "string") {
+      payload.language = body.language;
+    }
+    if (typeof body?.note === "string") {
+      payload.note = body.note;
+    }
+    if (Array.isArray(body?.tags)) {
+      payload.tags = body.tags;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return NextResponse.json({ error: "update payload is empty" }, { status: 400 });
+    }
+
+    const url = new URL(`${getServerApiBase()}/api/note/${noteId}`);
+    url.searchParams.set("user_id", getRequestUserId());
+
+    const upstream = await fetch(url, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!upstream.ok) {
+      const message = await upstream.text();
+      return NextResponse.json(
+        { error: message || "Failed to update note" },
+        { status: upstream.status },
+      );
+    }
+
+    return NextResponse.json({ status: "updated" }, { status: 200 });
+  } catch (error) {
+    console.error("Failed to update note", error);
+    return NextResponse.json({ error: "Failed to update note" }, { status: 500 });
+  }
+}
