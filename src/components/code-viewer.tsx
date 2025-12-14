@@ -40,6 +40,9 @@ export function CodeViewer({ code, language, noteId }: Props) {
   const grammar = Prism.languages[normalized] ?? Prism.languages.typescript;
   const displayValue = isEditing ? draft : currentCode;
   const lines = displayValue.split("\n");
+  const MIN_LINES = 6;
+  const LINE_HEIGHT_EM = 1.6;
+  const editorHeight = `${Math.max(lines.length + 3, MIN_LINES) * LINE_HEIGHT_EM}em`;
 
   useEffect(() => {
     setCurrentCode(code);
@@ -162,11 +165,12 @@ export function CodeViewer({ code, language, noteId }: Props) {
         </button>
       </div>
       <div className="flex bg-white text-[11px] font-mono leading-snug" style={{ fontSize: "0.72rem" }}>
-        <ol className="select-none bg-white px-4 py-4 text-right text-muted-foreground">
+        <ol
+          className="select-none bg-white px-4 py-4 text-right text-muted-foreground"
+          style={{ lineHeight: `${LINE_HEIGHT_EM}em` }}
+        >
           {lines.map((_, index) => (
-            <li key={index} className="h-4 leading-snug">
-              {index + 1}
-            </li>
+            <li key={index}>{index + 1}</li>
           ))}
         </ol>
         {isEditing ? (
@@ -175,15 +179,22 @@ export function CodeViewer({ code, language, noteId }: Props) {
             onChange={(event) => setDraft(event.target.value)}
             className="w-full flex-1 border-l border-border/70 bg-white p-4 font-mono text-[0.72rem] leading-snug text-foreground outline-none"
             spellCheck="false"
+            wrap="off"
             style={{
-              height: `${Math.max(lines.length, 6) * 1.4}em`,
+              height: editorHeight,
+              lineHeight: `${LINE_HEIGHT_EM}em`,
+              whiteSpace: "pre",
             }}
           />
         ) : (
           <pre
             className={`language-${normalized} overflow-x-auto p-4 pr-16 text-muted-foreground`}
             tabIndex={0}
-            style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
+            style={{
+              backgroundColor: "#ffffff",
+              color: "#0f172a",
+              lineHeight: `${LINE_HEIGHT_EM}em`,
+            }}
           >
             <code
               className={`language-${normalized}`}
