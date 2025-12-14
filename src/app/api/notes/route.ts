@@ -151,8 +151,17 @@ export async function POST(request: Request) {
 
     if (!upstream.ok) {
       const message = await upstream.text();
+      let errorMessage = message || "Failed to create note";
+      try {
+        const parsed = JSON.parse(message);
+        if (typeof parsed?.error === "string" && parsed.error.trim().length > 0) {
+          errorMessage = parsed.error;
+        }
+      } catch {
+        // ignore JSON parse errors and fall back to raw text
+      }
       return NextResponse.json(
-        { error: message || "Failed to create note" },
+        { error: errorMessage },
         { status: upstream.status },
       );
     }

@@ -27,6 +27,20 @@ export async function DELETE(request: Request) {
   return handleFolderDeletion(request);
 }
 
+export async function PATCH(request: Request) {
+  const requestUrl = new URL(request.url);
+  const resource = requestUrl.searchParams.get("resource");
+
+  if (resource !== "folder") {
+    return NextResponse.json(
+      { error: "Unsupported update operation" },
+      { status: 400 },
+    );
+  }
+
+  return handleFolderRename(request);
+}
+
 async function handleCollectionCreation(request: Request) {
   try {
     const body = await request.json();
@@ -141,6 +155,64 @@ async function handleFolderDeletion(request: Request) {
     console.error("Failed to delete folder", error);
     return NextResponse.json(
       { error: "Failed to delete folder" },
+      { status: 500 },
+    );
+  }
+}
+
+async function handleFolderRename(request: Request) {
+  try {
+    const body = await request.json();
+    const collectionId =
+      typeof body?.collectionId === "string" ? body.collectionId.trim() : "";
+    const folderId =
+      typeof body?.folderId === "string" ? body.folderId.trim() : "";
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+
+    if (!collectionId) {
+      return NextResponse.json(
+        { error: "collectionId is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!folderId) {
+      return NextResponse.json(
+        { error: "folderId is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!name) {
+      return NextResponse.json({ error: "name is required" }, { status: 400 });
+    }
+
+    const url = new URL(
+      `${getServerApiBase()}/api/collections/${collectionId}/folders/${folderId}`,
+    );
+    url.searchParams.set("user_id", getRequestUserId());
+
+    const upstream = await fetch(url, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name }),
+    });
+
+    if (!upstream.ok) {
+      const message = await upstream.text();
+      return NextResponse.json(
+        { error: message || "Failed to rename folder" },
+        { status: upstream.status },
+      );
+    }
+
+    return new NextResponse(null, { status: upstream.status });
+  } catch (error) {
+    console.error("Failed to rename folder", error);
+    return NextResponse.json(
+      { error: "Failed to rename folder" },
       { status: 500 },
     );
   }

@@ -64,6 +64,7 @@ export function buildExplorerTree(
     children: roots,
     meta: {
       badge: `${notes.length} notes`,
+      isRoot: true,
     },
   };
 

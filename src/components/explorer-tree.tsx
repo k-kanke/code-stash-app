@@ -14,6 +14,7 @@ export type ExplorerNode = {
     href?: string;
     language?: string;
     badge?: string;
+    isRoot?: boolean;
   };
 };
 
@@ -68,6 +69,14 @@ export function ExplorerTree({
   } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [renameTarget, setRenameTarget] = useState<{
+    id: string;
+    name: string;
+    type: "folder" | "note";
+  } | null>(null);
+  const [renameName, setRenameName] = useState("");
+  const [renameLoading, setRenameLoading] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -266,12 +275,78 @@ export function ExplorerTree({
     }
   };
 
+  const handleRename = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!renameTarget) return;
+    const target = renameTarget;
+    const nextName = renameName.trim();
+    if (!nextName) {
+      setRenameError("名前を入力してください");
+      return;
+    }
+    try {
+      setRenameLoading(true);
+      let response: Response;
+      if (target.type === "folder") {
+        response = await fetch("/api/collections?resource=folder", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            collectionId,
+            folderId: target.id,
+            name: nextName,
+          }),
+        });
+      } else {
+        response = await fetch("/api/notes", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            noteId: target.id,
+            title: nextName,
+          }),
+        });
+      }
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(
+          data?.error ??
+            (target.type === "folder"
+              ? "フォルダ名の変更に失敗しました"
+              : "ノート名の変更に失敗しました"),
+        );
+      }
+
+      setRenameTarget(null);
+      setRenameName("");
+      setRenameError(null);
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setRenameError(
+        error instanceof Error
+          ? error.message
+          : target.type === "folder"
+            ? "フォルダ名の変更に失敗しました"
+            : "ノート名の変更に失敗しました",
+      );
+    } finally {
+      setRenameLoading(false);
+    }
+  };
+
   const renderNode = (node: ExplorerNode, depth = 0) => {
     const padding = depth === 0 ? 4 : depth * 12 + 4;
 
     if (node.type === "folder") {
       const isOpen = openIds.has(node.id);
       const isSelected = selectedFolderId === node.id;
+      const isCollectionRoot = node.meta?.isRoot ?? false;
       return (
         <div key={node.id}>
           <div
@@ -296,42 +371,58 @@ export function ExplorerTree({
             >
               {node.label}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDeleteError(null);
-                setOpenMenuNode((prev) =>
-                  prev && prev.id === node.id && prev.type === "folder"
-                    ? null
-                    : { id: node.id, type: "folder" },
-                );
-              }}
-              className="rounded p-1 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
-              aria-label="folder menu"
-            >
-              ⋯
-            </button>
-            {openMenuNode?.type === "folder" && openMenuNode.id === node.id && (
-              <div
-                ref={(element) => {
-                  if (openMenuNode?.type === "folder" && openMenuNode.id === node.id) {
-                    menuRef.current = element;
-                  }
-                }}
-                className="absolute right-2 top-full z-20 mt-1 w-32 rounded-md border border-border bg-card py-1 shadow-lg"
-              >
+            {!isCollectionRoot && (
+              <>
                 <button
                   type="button"
                   onClick={() => {
-                    setPendingDelete({ id: node.id, name: node.label, type: "folder" });
-                    setOpenMenuNode(null);
                     setDeleteError(null);
+                    setOpenMenuNode((prev) =>
+                      prev && prev.id === node.id && prev.type === "folder"
+                        ? null
+                        : { id: node.id, type: "folder" },
+                    );
                   }}
-                  className="flex w-full items-center px-3 py-2 text-left text-sm text-destructive hover:bg-muted"
+                  className="rounded p-1 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  aria-label="folder menu"
                 >
-                  Delete
+                  ⋯
                 </button>
-              </div>
+                {openMenuNode?.type === "folder" && openMenuNode.id === node.id && (
+                  <div
+                    ref={(element) => {
+                      if (openMenuNode?.type === "folder" && openMenuNode.id === node.id) {
+                        menuRef.current = element;
+                      }
+                    }}
+                    className="absolute right-2 top-full z-20 mt-1 w-32 rounded-md border border-border bg-card py-1 shadow-lg"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRenameTarget({ id: node.id, name: node.label, type: "folder" });
+                        setRenameName(node.label);
+                        setRenameError(null);
+                        setOpenMenuNode(null);
+                      }}
+                      className="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-muted"
+                    >
+                      Rename
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingDelete({ id: node.id, name: node.label, type: "folder" });
+                        setOpenMenuNode(null);
+                        setDeleteError(null);
+                      }}
+                      className="flex w-full items-center px-3 py-2 text-left text-sm text-destructive hover:bg-muted"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
           {isOpen && node.children && (
@@ -383,6 +474,18 @@ export function ExplorerTree({
             }}
             className="absolute right-2 top-full z-20 mt-1 w-32 rounded-md border border-border bg-card py-1 shadow-lg"
           >
+            <button
+              type="button"
+              onClick={() => {
+                setRenameTarget({ id: node.id, name: node.label, type: "note" });
+                setRenameName(node.label);
+                setRenameError(null);
+                setOpenMenuNode(null);
+              }}
+              className="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-muted"
+            >
+              Rename
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -526,6 +629,54 @@ export function ExplorerTree({
           </div>
         </Dialog>
       )}
+      {renameTarget && (
+        <Dialog
+          title={renameTarget.type === "folder" ? "Rename Folder" : "Rename Note"}
+          onClose={() => {
+            if (renameLoading) return;
+            setRenameTarget(null);
+            setRenameName("");
+            setRenameError(null);
+          }}
+        >
+          <form onSubmit={handleRename} className="space-y-4">
+            <div>
+              <label className="text-xs uppercase tracking-wide text-muted-foreground">
+                New Name
+              </label>
+              <input
+                value={renameName}
+                onChange={(event) => setRenameName(event.target.value)}
+                className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm outline-none focus:border-foreground"
+                placeholder="Enter a new name"
+                autoFocus
+              />
+            </div>
+            {renameError && <p className="text-sm text-destructive">{renameError}</p>}
+            <div className="flex justify-end gap-2 text-sm">
+              <button
+                type="button"
+                onClick={() => {
+                  if (renameLoading) return;
+                  setRenameTarget(null);
+                  setRenameName("");
+                  setRenameError(null);
+                }}
+                className="rounded-md border border-border px-4 py-2 text-muted-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={renameLoading}
+                className="rounded-md bg-foreground px-4 py-2 font-medium text-background disabled:opacity-60"
+              >
+                {renameLoading ? "Renaming..." : "Rename"}
+              </button>
+            </div>
+          </form>
+        </Dialog>
+      )}
       {isNoteDialogOpen && (
         <Dialog
           title="New Note"
@@ -583,7 +734,14 @@ export function ExplorerTree({
                 placeholder="leave a memo"
               />
             </div>
-            {noteError && <p className="text-sm text-destructive">{noteError}</p>}
+            {noteError && (
+              <div
+                role="alert"
+                className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-600"
+              >
+                {noteError}
+              </div>
+            )}
             <div className="flex justify-end gap-2 text-sm">
               <button
                 type="button"
