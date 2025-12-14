@@ -504,7 +504,7 @@ export function NoteComments({ noteId, initialComments }: Props) {
               className="rounded-md bg-foreground px-3 py-1 text-[11px] font-semibold text-background"
               onClick={() => setIsFormOpen(true)}
             >
-              Comment
+              ＋ Comment
             </button>
           )}
         </div>
@@ -520,7 +520,7 @@ export function NoteComments({ noteId, initialComments }: Props) {
             onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))}
             className="w-full rounded-md border border-border bg-background/50 p-2 text-sm outline-none"
             rows={3}
-            placeholder="例: ここはエラーハンドリングが必要かも？"
+            placeholder="leave a comment"
           />
           <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
             <label className="flex flex-col gap-1">

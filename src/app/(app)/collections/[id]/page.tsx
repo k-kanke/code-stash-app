@@ -226,7 +226,7 @@ function NoteDetailPanel({
               </span>
             ))
           ) : (
-            <span className="text-[11px] text-muted-foreground">タグはまだありません</span>
+            <span className="text-[11px] text-muted-foreground">No tags yet.</span>
           )}
         </div>
       </header>
