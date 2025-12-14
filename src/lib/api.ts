@@ -139,3 +139,14 @@ export async function fetchNoteById(id: string): Promise<Note> {
   const data = await request<RawNoteDetail>(`/api/note/${id}`);
   return mapNoteDetail(data);
 }
+
+export async function createCollection(input: { name: string; description?: string }) {
+  const data = await request<RawCollection>("/api/collections", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  return mapCollection(data);
+}
