@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -58,9 +58,42 @@ export function ExplorerTree({
   const [noteContent, setNoteContent] = useState("");
   const [noteError, setNoteError] = useState<string | null>(null);
   const [noteLoading, setNoteLoading] = useState(false);
+  const [openMenuNode, setOpenMenuNode] = useState<{ id: string; type: "folder" | "note" } | null>(
+    null,
+  );
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    name: string;
+    type: "folder" | "note";
+  } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!openMenuNode) {
+      menuRef.current = null;
+      return;
+    }
+    const handleClick = (event: MouseEvent) => {
+      if (
+        menuRef.current &&
+        event.target instanceof Node &&
+        menuRef.current.contains(event.target)
+      ) {
+        return;
+      }
+      setOpenMenuNode(null);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      menuRef.current = null;
+    };
+  }, [openMenuNode]);
 
   const toggleFolder = (id: string) => {
     setOpenIds((prev) => {
@@ -169,6 +202,70 @@ export function ExplorerTree({
     }
   };
 
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    try {
+      setDeleteLoading(true);
+      let response: Response;
+      if (pendingDelete.type === "folder") {
+        response = await fetch("/api/collections?resource=folder", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            collectionId,
+            folderId: pendingDelete.id,
+          }),
+        });
+      } else {
+        response = await fetch("/api/notes?resource=note", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            noteId: pendingDelete.id,
+          }),
+        });
+      }
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(
+          data?.error ??
+            (pendingDelete.type === "folder"
+              ? "フォルダの削除に失敗しました"
+              : "ノートの削除に失敗しました"),
+        );
+      }
+
+      if (pendingDelete.type === "note" && searchParams?.get("note") === pendingDelete.id) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("note");
+        const query = params.toString();
+        if (pathname) {
+          router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+        }
+      }
+
+      setPendingDelete(null);
+      setDeleteError(null);
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setDeleteError(
+        error instanceof Error
+          ? error.message
+          : pendingDelete.type === "folder"
+            ? "フォルダの削除に失敗しました"
+            : "ノートの削除に失敗しました",
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const renderNode = (node: ExplorerNode, depth = 0) => {
     const padding = depth === 0 ? 4 : depth * 12 + 4;
 
@@ -178,7 +275,7 @@ export function ExplorerTree({
       return (
         <div key={node.id}>
           <div
-            className={`flex items-center gap-2 rounded-md px-2 py-1 text-sm transition ${
+            className={`relative flex items-center gap-2 rounded-md px-2 py-1 text-sm transition ${
               isSelected ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
             }`}
             style={{ paddingLeft: `${padding}px` }}
@@ -199,6 +296,43 @@ export function ExplorerTree({
             >
               {node.label}
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteError(null);
+                setOpenMenuNode((prev) =>
+                  prev && prev.id === node.id && prev.type === "folder"
+                    ? null
+                    : { id: node.id, type: "folder" },
+                );
+              }}
+              className="rounded p-1 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              aria-label="folder menu"
+            >
+              ⋯
+            </button>
+            {openMenuNode?.type === "folder" && openMenuNode.id === node.id && (
+              <div
+                ref={(element) => {
+                  if (openMenuNode?.type === "folder" && openMenuNode.id === node.id) {
+                    menuRef.current = element;
+                  }
+                }}
+                className="absolute right-2 top-full z-20 mt-1 w-32 rounded-md border border-border bg-card py-1 shadow-lg"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingDelete({ id: node.id, name: node.label, type: "folder" });
+                    setOpenMenuNode(null);
+                    setDeleteError(null);
+                  }}
+                  className="flex w-full items-center px-3 py-2 text-left text-sm text-destructive hover:bg-muted"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
           {isOpen && node.children && (
             <div className="space-y-1">{node.children.map((child) => renderNode(child, depth + 1))}</div>
@@ -210,17 +344,59 @@ export function ExplorerTree({
     const isActive = activeNoteId === node.id;
 
     return (
-      <Link
+      <div
         key={node.id}
-        href={node.meta?.href ?? "#"}
-        className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm transition hover:bg-muted ${
-          isActive ? "bg-muted text-foreground" : "text-muted-foreground"
+        className={`relative flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm transition ${
+          isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
         }`}
         style={{ paddingLeft: `${padding + 12}px` }}
       >
-        <FileIcon />
-        <span className="flex-1 truncate text-foreground">{node.label}</span>
-      </Link>
+        <Link
+          href={node.meta?.href ?? "#"}
+          className="flex flex-1 items-center gap-2"
+          scroll={false}
+        >
+          <FileIcon />
+          <span className="flex-1 truncate text-foreground">{node.label}</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => {
+            setDeleteError(null);
+            setOpenMenuNode((prev) =>
+              prev && prev.id === node.id && prev.type === "note"
+                ? null
+                : { id: node.id, type: "note" },
+            );
+          }}
+          className="rounded p-1 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          aria-label="note menu"
+        >
+          ⋯
+        </button>
+        {openMenuNode?.type === "note" && openMenuNode.id === node.id && (
+          <div
+            ref={(element) => {
+              if (openMenuNode?.type === "note" && openMenuNode.id === node.id) {
+                menuRef.current = element;
+              }
+            }}
+            className="absolute right-2 top-full z-20 mt-1 w-32 rounded-md border border-border bg-card py-1 shadow-lg"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setPendingDelete({ id: node.id, name: node.label, type: "note" });
+                setOpenMenuNode(null);
+                setDeleteError(null);
+              }}
+              className="flex w-full items-center px-3 py-2 text-left text-sm text-destructive hover:bg-muted"
+            >
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -259,7 +435,7 @@ export function ExplorerTree({
       <div className="space-y-1 p-2">{nodes.map((node) => renderNode(node))}</div>
       {isFolderDialogOpen && (
         <Dialog
-          title="新規フォルダ"
+          title="New Folder"
           onClose={() => {
             if (folderLoading) return;
             setIsFolderDialogOpen(false);
@@ -275,7 +451,7 @@ export function ExplorerTree({
                 value={folderName}
                 onChange={(event) => setFolderName(event.target.value)}
                 className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm outline-none focus:border-foreground"
-                placeholder="フォルダ名"
+                placeholder="Folder Name"
                 maxLength={80}
               />
             </div>
@@ -303,9 +479,56 @@ export function ExplorerTree({
           </form>
         </Dialog>
       )}
+      {pendingDelete && (
+        <Dialog
+          title={pendingDelete.type === "folder" ? "Delete Folder" : "Delete Note"}
+          description={
+            pendingDelete.type === "folder"
+              ? "This will remove the folder and everything inside."
+              : "This will remove the note and its discussion."
+          }
+          onClose={() => {
+            if (deleteLoading) return;
+            setPendingDelete(null);
+            setDeleteError(null);
+          }}
+        >
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete{" "}
+            <span className="font-semibold text-foreground">{pendingDelete.name}</span>?
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {pendingDelete.type === "folder"
+              ? "Nested folders, notes, and comments will also be removed."
+              : "Comments linked to this note will be removed as well."}
+          </p>
+          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+          <div className="mt-6 flex justify-end gap-2 text-sm">
+            <button
+              type="button"
+              onClick={() => {
+                if (deleteLoading) return;
+                setPendingDelete(null);
+                setDeleteError(null);
+              }}
+              className="rounded-md border border-border px-4 py-2 text-muted-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleteLoading}
+              className="rounded-md bg-destructive px-4 py-2 font-medium text-background disabled:opacity-60"
+            >
+              {deleteLoading ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </Dialog>
+      )}
       {isNoteDialogOpen && (
         <Dialog
-          title="新規ノート"
+          title="New Note"
           onClose={() => {
             if (noteLoading) return;
             setIsNoteDialogOpen(false);
@@ -319,7 +542,7 @@ export function ExplorerTree({
                 value={noteTitle}
                 onChange={(event) => setNoteTitle(event.target.value)}
                 className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm outline-none focus:border-foreground"
-                placeholder="ノート名"
+                placeholder="Note Name"
               />
             </div>
             <div className="grid gap-3 md:grid-cols-2">
@@ -348,16 +571,16 @@ export function ExplorerTree({
                 value={noteCode}
                 onChange={(event) => setNoteCode(event.target.value)}
                 className="mt-2 h-32 w-full rounded-md border border-border bg-background p-2 font-mono text-sm outline-none focus:border-foreground"
-                placeholder="コードを入力"
+                placeholder="write code"
               />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Notes</label>
+              <label className="text-xs uppercase tracking-wide text-muted-foreground">Memo</label>
               <textarea
                 value={noteContent}
                 onChange={(event) => setNoteContent(event.target.value)}
                 className="mt-2 h-24 w-full rounded-md border border-border bg-background p-2 text-sm outline-none focus:border-foreground"
-                placeholder="補足メモ (任意)"
+                placeholder="leave a memo"
               />
             </div>
             {noteError && <p className="text-sm text-destructive">{noteError}</p>}

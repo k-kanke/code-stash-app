@@ -290,29 +290,56 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
-  if (searchParams.get("resource") !== "comment") {
-    return NextResponse.json({ error: "Unsupported operation" }, { status: 400 });
-  }
+  const resource = searchParams.get("resource");
 
-  const commentId = searchParams.get("commentId")?.trim();
-  if (!commentId) {
-    return NextResponse.json({ error: "commentId is required" }, { status: 400 });
-  }
-
-  try {
-    const url = new URL(`${getServerApiBase()}/api/comments/${commentId}`);
-    url.searchParams.set("user_id", getRequestUserId());
-    const upstream = await fetch(url, { method: "DELETE" });
-    if (!upstream.ok) {
-      const text = await upstream.text();
-      return NextResponse.json(
-        { error: text || "Failed to delete comment" },
-        { status: upstream.status },
-      );
+  if (resource === "comment") {
+    const commentId = searchParams.get("commentId")?.trim();
+    if (!commentId) {
+      return NextResponse.json({ error: "commentId is required" }, { status: 400 });
     }
-    return NextResponse.json({ status: "deleted" }, { status: 200 });
-  } catch (error) {
-    console.error("Failed to delete comment", error);
-    return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });
+
+    try {
+      const url = new URL(`${getServerApiBase()}/api/comments/${commentId}`);
+      url.searchParams.set("user_id", getRequestUserId());
+      const upstream = await fetch(url, { method: "DELETE" });
+      if (!upstream.ok) {
+        const text = await upstream.text();
+        return NextResponse.json(
+          { error: text || "Failed to delete comment" },
+          { status: upstream.status },
+        );
+      }
+      return NextResponse.json({ status: "deleted" }, { status: 200 });
+    } catch (error) {
+      console.error("Failed to delete comment", error);
+      return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });
+    }
   }
+
+  if (resource === "note") {
+    try {
+      const body = await request.json().catch(() => null);
+      const noteId = typeof body?.noteId === "string" ? body.noteId.trim() : "";
+      if (!noteId) {
+        return NextResponse.json({ error: "noteId is required" }, { status: 400 });
+      }
+
+      const url = new URL(`${getServerApiBase()}/api/note/${noteId}`);
+      url.searchParams.set("user_id", getRequestUserId());
+      const upstream = await fetch(url, { method: "DELETE" });
+      if (!upstream.ok) {
+        const text = await upstream.text();
+        return NextResponse.json(
+          { error: text || "Failed to delete note" },
+          { status: upstream.status },
+        );
+      }
+      return NextResponse.json({ status: "deleted" }, { status: 200 });
+    } catch (error) {
+      console.error("Failed to delete note", error);
+      return NextResponse.json({ error: "Failed to delete note" }, { status: 500 });
+    }
+  }
+
+  return NextResponse.json({ error: "Unsupported operation" }, { status: 400 });
 }

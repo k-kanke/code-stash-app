@@ -13,6 +13,20 @@ export async function POST(request: Request) {
   return handleCollectionCreation(request);
 }
 
+export async function DELETE(request: Request) {
+  const requestUrl = new URL(request.url);
+  const resource = requestUrl.searchParams.get("resource");
+
+  if (resource !== "folder") {
+    return NextResponse.json(
+      { error: "Unsupported delete operation" },
+      { status: 400 },
+    );
+  }
+
+  return handleFolderDeletion(request);
+}
+
 async function handleCollectionCreation(request: Request) {
   try {
     const body = await request.json();
@@ -83,6 +97,52 @@ async function handleFolderCreation(request: Request) {
   } catch (error) {
     console.error("Failed to create folder", error);
     return NextResponse.json({ error: "Failed to create folder" }, { status: 500 });
+  }
+}
+
+async function handleFolderDeletion(request: Request) {
+  try {
+    const body = await request.json().catch(() => null);
+    const collectionId =
+      typeof body?.collectionId === "string" ? body.collectionId.trim() : "";
+    const folderId =
+      typeof body?.folderId === "string" ? body.folderId.trim() : "";
+
+    if (!collectionId) {
+      return NextResponse.json(
+        { error: "collectionId is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!folderId) {
+      return NextResponse.json(
+        { error: "folderId is required" },
+        { status: 400 },
+      );
+    }
+
+    const url = new URL(
+      `${getServerApiBase()}/api/collections/${collectionId}/folders/${folderId}`,
+    );
+    url.searchParams.set("user_id", getRequestUserId());
+
+    const upstream = await fetch(url, { method: "DELETE" });
+    if (!upstream.ok) {
+      const message = await upstream.text();
+      return NextResponse.json(
+        { error: message || "Failed to delete folder" },
+        { status: upstream.status },
+      );
+    }
+
+    return new NextResponse(null, { status: upstream.status });
+  } catch (error) {
+    console.error("Failed to delete folder", error);
+    return NextResponse.json(
+      { error: "Failed to delete folder" },
+      { status: 500 },
+    );
   }
 }
 
