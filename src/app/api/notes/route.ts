@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerApiBase } from "@/lib/server-api";
-import { getRequestUserId } from "@/lib/request-user";
+import { getAuthTokenFromCookies } from "@/lib/auth-cookie";
 
 type IncomingTags = string[] | string | undefined;
 
@@ -33,9 +33,18 @@ export async function GET(request: Request) {
   }
 
   try {
+    const token = await getAuthTokenFromCookies();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const url = new URL(`${getServerApiBase()}/api/note/${noteId}/comments`);
-    url.searchParams.set("user_id", getRequestUserId());
-    const upstream = await fetch(url, { cache: "no-store" });
+    const upstream = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     const text = await upstream.text();
 
     if (!upstream.ok) {
@@ -68,16 +77,23 @@ export async function POST(request: Request) {
     }
 
     try {
+      const token = await getAuthTokenFromCookies();
+      if (!token) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
       const body = await request.json();
       const parentCommentId =
         typeof body?.parentCommentId === "string" && body.parentCommentId.trim().length > 0
           ? body.parentCommentId.trim()
           : undefined;
       const url = new URL(`${getServerApiBase()}/api/note/${noteId}/comments`);
-      url.searchParams.set("user_id", getRequestUserId());
       const upstream = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           body: body?.body ?? "",
           lineStart: body?.lineStart ?? null,
@@ -105,6 +121,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    const token = await getAuthTokenFromCookies();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const collectionId =
       typeof body?.collectionId === "string" ? body.collectionId.trim() : "";
@@ -132,12 +153,12 @@ export async function POST(request: Request) {
     }
 
     const url = new URL(`${getServerApiBase()}/api/collections/${collectionId}/notes`);
-    url.searchParams.set("user_id", getRequestUserId());
 
     const upstream = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         folder_id: folderId ?? null,
@@ -214,12 +235,16 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "update payload is empty" }, { status: 400 });
       }
 
+      const token = await getAuthTokenFromCookies();
+      if (!token) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
       const url = new URL(`${getServerApiBase()}/api/comments/${commentId}`);
-      url.searchParams.set("user_id", getRequestUserId());
 
       const upstream = await fetch(url, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
 
@@ -244,6 +269,11 @@ export async function PATCH(request: Request) {
   }
 
   try {
+    const token = await getAuthTokenFromCookies();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const noteId = typeof body?.noteId === "string" ? body.noteId.trim() : "";
     if (!noteId) {
@@ -272,12 +302,11 @@ export async function PATCH(request: Request) {
     }
 
     const url = new URL(`${getServerApiBase()}/api/note/${noteId}`);
-    url.searchParams.set("user_id", getRequestUserId());
-
     const upstream = await fetch(url, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
     });
@@ -308,9 +337,18 @@ export async function DELETE(request: Request) {
     }
 
     try {
+      const token = await getAuthTokenFromCookies();
+      if (!token) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
       const url = new URL(`${getServerApiBase()}/api/comments/${commentId}`);
-      url.searchParams.set("user_id", getRequestUserId());
-      const upstream = await fetch(url, { method: "DELETE" });
+      const upstream = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!upstream.ok) {
         const text = await upstream.text();
         return NextResponse.json(
@@ -327,6 +365,11 @@ export async function DELETE(request: Request) {
 
   if (resource === "note") {
     try {
+      const token = await getAuthTokenFromCookies();
+      if (!token) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
       const body = await request.json().catch(() => null);
       const noteId = typeof body?.noteId === "string" ? body.noteId.trim() : "";
       if (!noteId) {
@@ -334,8 +377,12 @@ export async function DELETE(request: Request) {
       }
 
       const url = new URL(`${getServerApiBase()}/api/note/${noteId}`);
-      url.searchParams.set("user_id", getRequestUserId());
-      const upstream = await fetch(url, { method: "DELETE" });
+      const upstream = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!upstream.ok) {
         const text = await upstream.text();
         return NextResponse.json(

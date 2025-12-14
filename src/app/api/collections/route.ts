@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerApiBase } from "@/lib/server-api";
-import { getRequestUserId } from "@/lib/request-user";
+import { getAuthTokenFromCookies } from "@/lib/auth-cookie";
 
 export async function POST(request: Request) {
   const requestUrl = new URL(request.url);
@@ -43,6 +43,11 @@ export async function PATCH(request: Request) {
 
 async function handleCollectionCreation(request: Request) {
   try {
+    const token = await getAuthTokenFromCookies();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const name = typeof body?.name === "string" ? body.name.trim() : "";
     const descriptionInput =
@@ -54,12 +59,12 @@ async function handleCollectionCreation(request: Request) {
     }
 
     const url = new URL(`${getServerApiBase()}/api/collections`);
-    url.searchParams.set("user_id", getRequestUserId());
 
     const upstream = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ name, description }),
     });
@@ -76,6 +81,11 @@ async function handleCollectionCreation(request: Request) {
 
 async function handleFolderCreation(request: Request) {
   try {
+    const token = await getAuthTokenFromCookies();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const collectionId =
       typeof body?.collectionId === "string" ? body.collectionId.trim() : "";
@@ -94,12 +104,12 @@ async function handleFolderCreation(request: Request) {
     }
 
     const url = new URL(`${getServerApiBase()}/api/collections/${collectionId}/folders`);
-    url.searchParams.set("user_id", getRequestUserId());
 
     const upstream = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         name,
@@ -116,6 +126,11 @@ async function handleFolderCreation(request: Request) {
 
 async function handleFolderDeletion(request: Request) {
   try {
+    const token = await getAuthTokenFromCookies();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json().catch(() => null);
     const collectionId =
       typeof body?.collectionId === "string" ? body.collectionId.trim() : "";
@@ -139,9 +154,13 @@ async function handleFolderDeletion(request: Request) {
     const url = new URL(
       `${getServerApiBase()}/api/collections/${collectionId}/folders/${folderId}`,
     );
-    url.searchParams.set("user_id", getRequestUserId());
 
-    const upstream = await fetch(url, { method: "DELETE" });
+    const upstream = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     if (!upstream.ok) {
       const message = await upstream.text();
       return NextResponse.json(
@@ -162,6 +181,11 @@ async function handleFolderDeletion(request: Request) {
 
 async function handleFolderRename(request: Request) {
   try {
+    const token = await getAuthTokenFromCookies();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const collectionId =
       typeof body?.collectionId === "string" ? body.collectionId.trim() : "";
@@ -190,12 +214,12 @@ async function handleFolderRename(request: Request) {
     const url = new URL(
       `${getServerApiBase()}/api/collections/${collectionId}/folders/${folderId}`,
     );
-    url.searchParams.set("user_id", getRequestUserId());
 
     const upstream = await fetch(url, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ name }),
     });

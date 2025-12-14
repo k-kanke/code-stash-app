@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import type { Collection, Folder, Note, NoteComment } from "./types";
 import { getServerApiBase } from "./server-api";
+import { getAuthTokenFromCookies } from "@/lib/auth-cookie";
 
 type RawCollection = {
   id: string;
@@ -54,21 +56,20 @@ type RawNoteComment = {
   updatedAt: string;
 };
 
-function getUserId() {
-  return (
-    process.env.NEXT_PUBLIC_MOCK_USER_ID ??
-    process.env.NEXT_PUBLIC_USER_ID ??
-    process.env.USER_ID ??
-    "11111111-1111-1111-1111-111111111111"
-  );
-}
-
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = await getAuthTokenFromCookies();
+  if (!token) {
+    redirect("/login");
+  }
+
   const url = new URL(`${getServerApiBase()}${path}`);
-  url.searchParams.set("user_id", getUserId());
+
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${token}`);
 
   const response = await fetch(url, {
     cache: "no-store",
+    headers,
     ...init,
   });
 
