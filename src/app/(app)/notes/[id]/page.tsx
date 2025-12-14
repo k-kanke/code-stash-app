@@ -96,7 +96,7 @@ export default async function NoteDetailPage({
           <ExplorerTree nodes={explorerNodes} activeNoteId={note.id} selectedFolderId={selectedFolderId} />
         </div>
 
-        <section className="space-y-2 lg:col-span-6 xl:col-span-7">
+        <section className="space-y-2 lg:col-span-7 xl:col-span-8">
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
             <span>Code</span>
             <span className="text-muted-foreground/70">Read only</span>
@@ -104,7 +104,7 @@ export default async function NoteDetailPage({
           <CodeViewer code={note.code} language={note.language} />
         </section>
 
-        <aside className="space-y-4 lg:col-span-4 xl:col-span-3">
+        <aside className="space-y-4 lg:col-span-3 xl:col-span-2">
           <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
             <header className="mb-3">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Notes</p>

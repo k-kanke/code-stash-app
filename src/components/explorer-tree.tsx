@@ -67,6 +67,7 @@ export function ExplorerTree({
     } else {
       params.delete("folder");
     }
+    params.delete("note");
     const query = params.toString();
     router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };

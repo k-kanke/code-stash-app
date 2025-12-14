@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 const mainNav = [
-  { name: "ダッシュボード", href: "/" },
-  { name: "コレクション", href: "/collections" },
-  { name: "ノート", href: "/notes/alpha" },
+  { name: "Dashboard", href: "/" },
+  { name: "Collection", href: "/collections" },
+  { name: "Note", href: "/notes/alpha" },
 ];
 
 function AppHeader() {

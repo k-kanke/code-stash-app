@@ -1,12 +1,20 @@
 import type { ExplorerNode } from "@/components/explorer-tree";
 import type { Folder, Note } from "./types";
 
+type BuildExplorerOptions = {
+  getNoteHref?: (note: Note) => string;
+};
+
 export function buildExplorerTree(
   collectionId: string,
   collectionName: string,
   folders: Folder[],
   notes: Note[],
+  options?: BuildExplorerOptions,
 ): ExplorerNode[] {
+  const resolveNoteHref =
+    options?.getNoteHref ??
+    ((note: Note) => `/notes/${note.id}`);
   type FolderNode = ExplorerNode & { type: "folder"; children: ExplorerNode[] };
 
   const folderNodes = new Map<string, FolderNode>();
@@ -37,7 +45,7 @@ export function buildExplorerTree(
       label: note.title,
       type: "note",
       meta: {
-        href: `/notes/${note.id}`,
+        href: resolveNoteHref(note),
         language: note.language,
       },
     };
