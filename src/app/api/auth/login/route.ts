@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerApiBase } from "@/lib/server-api";
-import { setAuthCookie } from "@/lib/auth-cookie";
+import { clearAuthCookie, setAuthCookie } from "@/lib/auth-cookie";
 
 type AuthResponse = {
   token: string;
@@ -74,6 +74,19 @@ export async function POST(request: Request) {
     console.error("Failed to handle auth", error);
     return NextResponse.json(
       { error: "Failed to authenticate" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE() {
+  try {
+    await clearAuthCookie();
+    return NextResponse.json({ status: "logged_out" }, { status: 200 });
+  } catch (error) {
+    console.error("Failed to logout", error);
+    return NextResponse.json(
+      { error: "Failed to logout" },
       { status: 500 },
     );
   }

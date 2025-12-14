@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { AccountMenu } from "@/components/account-menu";
 
 const mainNav = [
   { name: "Dashboard", href: "/" },
@@ -35,9 +36,7 @@ function AppHeader() {
             />
           </div>
           <div className="hidden items-center gap-4 text-sm md:flex">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-xs font-semibold">
-              KK
-            </div>
+            <AccountMenu initials="KK" />
           </div>
         </div>
       </div>
