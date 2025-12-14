@@ -34,6 +34,7 @@ export type NoteComment = {
   body: string;
   lineStart?: number;
   lineEnd?: number;
+  parentCommentId?: string;
   resolved: boolean;
   createdAt: string;
   updatedAt: string;

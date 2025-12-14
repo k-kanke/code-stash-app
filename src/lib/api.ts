@@ -48,6 +48,7 @@ type RawNoteComment = {
   body: string;
   lineStart?: number | null;
   lineEnd?: number | null;
+  parentCommentId?: string | null;
   resolved: boolean;
   createdAt: string;
   updatedAt: string;
@@ -136,6 +137,7 @@ function mapNoteComment(data: RawNoteComment): NoteComment {
     body: data.body,
     lineStart: data.lineStart ?? undefined,
     lineEnd: data.lineEnd ?? undefined,
+    parentCommentId: data.parentCommentId ?? undefined,
     resolved: data.resolved,
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,

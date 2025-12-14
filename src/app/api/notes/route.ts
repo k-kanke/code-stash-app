@@ -69,6 +69,10 @@ export async function POST(request: Request) {
 
     try {
       const body = await request.json();
+      const parentCommentId =
+        typeof body?.parentCommentId === "string" && body.parentCommentId.trim().length > 0
+          ? body.parentCommentId.trim()
+          : undefined;
       const url = new URL(`${getServerApiBase()}/api/note/${noteId}/comments`);
       url.searchParams.set("user_id", getRequestUserId());
       const upstream = await fetch(url, {
@@ -78,6 +82,7 @@ export async function POST(request: Request) {
           body: body?.body ?? "",
           lineStart: body?.lineStart ?? null,
           lineEnd: body?.lineEnd ?? null,
+          parentCommentId,
         }),
       });
       const text = await upstream.text();
