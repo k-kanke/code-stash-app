@@ -21,7 +21,84 @@ function normalizeTags(tags: IncomingTags): string[] {
   return [];
 }
 
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get("resource") !== "comments") {
+    return NextResponse.json({ error: "Unsupported operation" }, { status: 400 });
+  }
+
+  const noteId = searchParams.get("noteId")?.trim();
+  if (!noteId) {
+    return NextResponse.json({ error: "noteId is required" }, { status: 400 });
+  }
+
+  try {
+    const url = new URL(`${getServerApiBase()}/api/note/${noteId}/comments`);
+    url.searchParams.set("user_id", getRequestUserId());
+    const upstream = await fetch(url, { cache: "no-store" });
+    const text = await upstream.text();
+
+    if (!upstream.ok) {
+      return NextResponse.json(
+        { error: text || "Failed to fetch comments" },
+        { status: upstream.status },
+      );
+    }
+
+    return new NextResponse(text || "[]", {
+      status: upstream.status,
+      headers: {
+        "content-type": upstream.headers.get("content-type") ?? "application/json",
+      },
+    });
+  } catch (error) {
+    console.error("Failed to fetch comments", error);
+    return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const resource = searchParams.get("resource");
+
+  if (resource === "comment") {
+    const noteId = searchParams.get("noteId")?.trim();
+    if (!noteId) {
+      return NextResponse.json({ error: "noteId is required" }, { status: 400 });
+    }
+
+    try {
+      const body = await request.json();
+      const url = new URL(`${getServerApiBase()}/api/note/${noteId}/comments`);
+      url.searchParams.set("user_id", getRequestUserId());
+      const upstream = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          body: body?.body ?? "",
+          lineStart: body?.lineStart ?? null,
+          lineEnd: body?.lineEnd ?? null,
+        }),
+      });
+      const text = await upstream.text();
+      if (!upstream.ok) {
+        return NextResponse.json(
+          { error: text || "Failed to create comment" },
+          { status: upstream.status },
+        );
+      }
+      return new NextResponse(text, {
+        status: upstream.status,
+        headers: {
+          "content-type": upstream.headers.get("content-type") ?? "application/json",
+        },
+      });
+    } catch (error) {
+      console.error("Failed to create comment", error);
+      return NextResponse.json({ error: "Failed to create comment" }, { status: 500 });
+    }
+  }
+
   try {
     const body = await request.json();
     const collectionId =
@@ -94,6 +171,64 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const resource = searchParams.get("resource");
+
+  if (resource === "comment") {
+    const commentId = searchParams.get("commentId")?.trim();
+    if (!commentId) {
+      return NextResponse.json({ error: "commentId is required" }, { status: 400 });
+    }
+
+    try {
+      const body = await request.json();
+      const payload: Record<string, unknown> = {};
+      if (typeof body?.body === "string") {
+        payload.body = body.body;
+      }
+      if (typeof body?.lineStart === "number" || body?.lineStart === null) {
+        payload.lineStart = body.lineStart;
+      }
+      if (typeof body?.lineEnd === "number" || body?.lineEnd === null) {
+        payload.lineEnd = body.lineEnd;
+      }
+      if (typeof body?.resolved === "boolean") {
+        payload.resolved = body.resolved;
+      }
+
+      if (Object.keys(payload).length === 0) {
+        return NextResponse.json({ error: "update payload is empty" }, { status: 400 });
+      }
+
+      const url = new URL(`${getServerApiBase()}/api/comments/${commentId}`);
+      url.searchParams.set("user_id", getRequestUserId());
+
+      const upstream = await fetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const text = await upstream.text();
+      if (!upstream.ok) {
+        return NextResponse.json(
+          { error: text || "Failed to update comment" },
+          { status: upstream.status },
+        );
+      }
+
+      return new NextResponse(text, {
+        status: upstream.status,
+        headers: {
+          "content-type": upstream.headers.get("content-type") ?? "application/json",
+        },
+      });
+    } catch (error) {
+      console.error("Failed to update comment", error);
+      return NextResponse.json({ error: "Failed to update comment" }, { status: 500 });
+    }
+  }
+
   try {
     const body = await request.json();
     const noteId = typeof body?.noteId === "string" ? body.noteId.trim() : "";
@@ -145,5 +280,34 @@ export async function PATCH(request: Request) {
   } catch (error) {
     console.error("Failed to update note", error);
     return NextResponse.json({ error: "Failed to update note" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get("resource") !== "comment") {
+    return NextResponse.json({ error: "Unsupported operation" }, { status: 400 });
+  }
+
+  const commentId = searchParams.get("commentId")?.trim();
+  if (!commentId) {
+    return NextResponse.json({ error: "commentId is required" }, { status: 400 });
+  }
+
+  try {
+    const url = new URL(`${getServerApiBase()}/api/comments/${commentId}`);
+    url.searchParams.set("user_id", getRequestUserId());
+    const upstream = await fetch(url, { method: "DELETE" });
+    if (!upstream.ok) {
+      const text = await upstream.text();
+      return NextResponse.json(
+        { error: text || "Failed to delete comment" },
+        { status: upstream.status },
+      );
+    }
+    return NextResponse.json({ status: "deleted" }, { status: 200 });
+  } catch (error) {
+    console.error("Failed to delete comment", error);
+    return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });
   }
 }

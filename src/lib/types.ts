@@ -26,3 +26,15 @@ export type Note = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type NoteComment = {
+  id: string;
+  noteId: string;
+  authorId: string;
+  body: string;
+  lineStart?: number;
+  lineEnd?: number;
+  resolved: boolean;
+  createdAt: string;
+  updatedAt: string;
+};

@@ -1,4 +1,4 @@
-import type { Collection, Folder, Note } from "./types";
+import type { Collection, Folder, Note, NoteComment } from "./types";
 import { getServerApiBase } from "./server-api";
 
 type RawCollection = {
@@ -39,6 +39,18 @@ type RawNoteDetail = {
   note: string;
   created_at: string;
   updated_at: string;
+};
+
+type RawNoteComment = {
+  id: string;
+  noteId: string;
+  authorId: string;
+  body: string;
+  lineStart?: number | null;
+  lineEnd?: number | null;
+  resolved: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 function getUserId() {
@@ -116,6 +128,20 @@ function mapNoteDetail(data: RawNoteDetail): Note {
   };
 }
 
+function mapNoteComment(data: RawNoteComment): NoteComment {
+  return {
+    id: data.id,
+    noteId: data.noteId,
+    authorId: data.authorId,
+    body: data.body,
+    lineStart: data.lineStart ?? undefined,
+    lineEnd: data.lineEnd ?? undefined,
+    resolved: data.resolved,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+  };
+}
+
 export async function fetchCollections(): Promise<Collection[]> {
   const data = await request<RawCollection[]>("/api/collections");
   return data.map(mapCollection);
@@ -139,6 +165,11 @@ export async function fetchNotesByCollection(id: string): Promise<Note[]> {
 export async function fetchNoteById(id: string): Promise<Note> {
   const data = await request<RawNoteDetail>(`/api/note/${id}`);
   return mapNoteDetail(data);
+}
+
+export async function fetchNoteComments(noteId: string): Promise<NoteComment[]> {
+  const data = await request<RawNoteComment[]>(`/api/note/${noteId}/comments`);
+  return data.map(mapNoteComment);
 }
 
 export async function createCollection(input: { name: string; description?: string }) {

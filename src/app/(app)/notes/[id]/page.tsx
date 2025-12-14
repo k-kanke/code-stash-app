@@ -2,11 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExplorerTree } from "@/components/explorer-tree";
 import { CodeViewer } from "@/components/code-viewer";
+import { NoteComments } from "@/components/note-comments";
 import {
   fetchCollectionById,
   fetchFoldersByCollection,
   fetchNoteById,
   fetchNotesByCollection,
+  fetchNoteComments,
 } from "@/lib/api";
 import { buildExplorerTree } from "@/lib/explorer";
 
@@ -24,10 +26,11 @@ export default async function NoteDetailPage({
     notFound();
   }
 
-  const [collection, folders, collectionNotes] = await Promise.all([
+  const [collection, folders, collectionNotes, noteComments] = await Promise.all([
     fetchCollectionById(note.collectionId),
     fetchFoldersByCollection(note.collectionId),
     fetchNotesByCollection(note.collectionId),
+    fetchNoteComments(note.id),
   ]);
 
   const explorerNodes = buildExplorerTree(
@@ -101,7 +104,7 @@ export default async function NoteDetailPage({
           />
         </div>
 
-        <section className="space-y-2 lg:col-span-7 xl:col-span-8">
+        <section className="space-y-4 lg:col-span-7 xl:col-span-7">
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
             <span>Code</span>
             <span className="text-muted-foreground/70">Read only</span>
@@ -109,28 +112,8 @@ export default async function NoteDetailPage({
           <CodeViewer code={note.code} language={note.language} noteId={note.id} />
         </section>
 
-        <aside className="space-y-4 lg:col-span-3 xl:col-span-2">
-          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <header className="mb-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Notes</p>
-              <h2 className="text-lg font-semibold">メモ</h2>
-            </header>
-            <textarea
-              defaultValue={note.note}
-              className="h-48 w-full rounded-md border border-border bg-muted/40 p-3 text-sm text-foreground outline-none"
-              placeholder="コードの背景や補足を書きましょう"
-            />
-            <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-              <span>自動保存はまだありません</span>
-              <button
-                type="button"
-                disabled
-                className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground"
-              >
-                Save (coming soon)
-              </button>
-            </div>
-          </section>
+        <aside className="lg:col-span-3 xl:col-span-3">
+          <NoteComments noteId={note.id} initialComments={noteComments} />
         </aside>
       </div>
     </article>

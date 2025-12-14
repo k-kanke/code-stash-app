@@ -2,13 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExplorerTree } from "@/components/explorer-tree";
 import { CodeViewer } from "@/components/code-viewer";
+import { NoteComments } from "@/components/note-comments";
 import {
   fetchCollectionById,
   fetchFoldersByCollection,
   fetchNotesByCollection,
   fetchNoteById,
+  fetchNoteComments,
 } from "@/lib/api";
-import type { Folder, Note } from "@/lib/types";
+import type { Folder, Note, NoteComment } from "@/lib/types";
 import { buildExplorerTree } from "@/lib/explorer";
 
 export default async function CollectionDetailPage({
@@ -44,6 +46,10 @@ export default async function CollectionDetailPage({
   const basePath = `/collections/${collection.id}`;
   const activeNote =
     fetchedNote && fetchedNote.collectionId === collection.id ? fetchedNote : null;
+  let noteComments: NoteComment[] = [];
+  if (activeNote) {
+    noteComments = await fetchNoteComments(activeNote.id);
+  }
 
   const selectedFolderFromQuery =
     requestedFolderId && folderMap.has(requestedFolderId)
@@ -103,7 +109,7 @@ export default async function CollectionDetailPage({
         </div>
         <div className="lg:col-span-9 xl:col-span-10">
           {activeNote ? (
-            <NoteDetailPanel note={activeNote} breadcrumb={noteBreadcrumb} />
+            <NoteDetailPanel note={activeNote} breadcrumb={noteBreadcrumb} comments={noteComments} />
           ) : (
             <FolderOverview
               basePath={basePath}
@@ -179,7 +185,15 @@ function FolderOverview({
   );
 }
 
-function NoteDetailPanel({ note, breadcrumb }: { note: Note; breadcrumb: string[] }) {
+function NoteDetailPanel({
+  note,
+  breadcrumb,
+  comments,
+}: {
+  note: Note;
+  breadcrumb: string[];
+  comments: NoteComment[];
+}) {
   return (
     <div className="space-y-4">
       <header className="rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -218,7 +232,7 @@ function NoteDetailPanel({ note, breadcrumb }: { note: Note; breadcrumb: string[
       </header>
 
       <div className="grid gap-4 xl:grid-cols-12">
-        <section className="space-y-3 xl:col-span-8">
+        <section className="space-y-4 xl:col-span-8">
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
             <span>Code</span>
             <span className="text-muted-foreground/70">Read only</span>
@@ -226,36 +240,8 @@ function NoteDetailPanel({ note, breadcrumb }: { note: Note; breadcrumb: string[
           <CodeViewer code={note.code} language={note.language} noteId={note.id} />
         </section>
 
-        <aside className="space-y-4 xl:col-span-4">
-          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <header className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Notes</p>
-                <h3 className="text-base font-semibold">メモ</h3>
-              </div>
-              <button
-                type="button"
-                className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground"
-              >
-                編集
-              </button>
-            </header>
-            <textarea
-              defaultValue={note.note}
-              className="h-48 w-full rounded-md border border-border bg-muted/40 p-3 text-sm text-foreground outline-none"
-              placeholder="コードの背景や補足を書きましょう"
-            />
-            <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-              <span>自動保存はまだありません</span>
-              <button
-                type="button"
-                disabled
-                className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground"
-              >
-                Save (coming soon)
-              </button>
-            </div>
-          </section>
+        <aside className="xl:col-span-4">
+          <NoteComments noteId={note.id} initialComments={comments} />
         </aside>
       </div>
     </div>
