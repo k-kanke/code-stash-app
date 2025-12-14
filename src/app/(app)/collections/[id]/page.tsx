@@ -233,10 +233,6 @@ function NoteDetailPanel({
 
       <div className="grid gap-4 xl:grid-cols-12">
         <section className="space-y-4 xl:col-span-8">
-          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            <span>Code</span>
-            <span className="text-muted-foreground/70">Read only</span>
-          </div>
           <CodeViewer code={note.code} language={note.language} noteId={note.id} />
         </section>
 

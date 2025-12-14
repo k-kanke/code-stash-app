@@ -40,7 +40,7 @@ export default async function DashboardPage() {
             href="/collections"
             className="text-sm text-blue-600 hover:underline"
           >
-            すべて見る
+            view all
           </Link>
         </header>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -73,9 +73,6 @@ export default async function DashboardPage() {
             </p>
             <h2 className="text-lg font-semibold">最近のノート</h2>
           </div>
-          <Link href="/notes/note-1" className="text-sm text-blue-600 hover:underline">
-            ノート一覧
-          </Link>
         </header>
         <div className="mt-4 divide-y divide-border/60">
           {recentNotes.map((note) => (

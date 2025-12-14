@@ -27,13 +27,13 @@ export function NoteComments({ noteId, initialComments }: Props) {
   const [editDraft, setEditDraft] = useState<CommentDraft>({ body: "", lineStart: "", lineEnd: "" });
   const [editResolved, setEditResolved] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [replyingToId, setReplyingToId] = useState<string | null>(null);
-  const [replyBody, setReplyBody] = useState("");
-  const [replyError, setReplyError] = useState<string | null>(null);
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [replyErrors, setReplyErrors] = useState<Record<string, string>>({});
   const [replySubmitting, setReplySubmitting] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const replyRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
   const orderedComments = useMemo(() => {
     return [...comments].sort(
@@ -56,6 +56,14 @@ export function NoteComments({ noteId, initialComments }: Props) {
   }, [orderedComments]);
 
   const rootComments = commentsByParent.get(ROOT_BUCKET) ?? [];
+
+  function autoResizeReply(id: string) {
+    const textarea = replyRefs.current[id];
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.max(textarea.scrollHeight, 32)}px`;
+    }
+  }
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -91,18 +99,9 @@ export function NoteComments({ noteId, initialComments }: Props) {
     setIsFormOpen(false);
   }
 
-  function openReply(target: NoteComment) {
-    if (target.parentCommentId) return;
-    setReplyingToId(target.id);
-    setReplyBody("");
-    setReplyError(null);
-  }
-
-  function cancelReply() {
-    setReplyingToId(null);
-    setReplyBody("");
-    setReplyError(null);
-  }
+  useEffect(() => {
+    Object.keys(replyDraft).forEach(autoResizeReply);
+  }, [replyDraft]);
 
   function removeWithDescendants(targetId: string, source: NoteComment[]) {
     const idsToRemove = new Set<string>([targetId]);
@@ -126,7 +125,7 @@ export function NoteComments({ noteId, initialComments }: Props) {
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!form.body.trim()) {
-      setError("コメントを入力してください");
+      setError("Please enter a comment");
       return;
     }
     try {
@@ -142,23 +141,26 @@ export function NoteComments({ noteId, initialComments }: Props) {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.error ?? "コメントの作成に失敗しました");
+        throw new Error(data?.error ?? "Failed to create comment");
       }
       setComments((prev) => [...prev, data as NoteComment]);
       closeForm();
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "コメントの作成に失敗しました");
+      setError(err instanceof Error ? err.message : "Failed to create comment");
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function handleReplySubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleReplySubmit(
+    event: React.FormEvent<HTMLFormElement>,
+    parentId: string,
+  ) {
     event.preventDefault();
-    if (!replyingToId) return;
-    if (!replyBody.trim()) {
-      setReplyError("返信を入力してください");
+    const body = replyDraft[parentId]?.trim();
+    if (!body) {
+      setReplyErrors((prev) => ({ ...prev, [parentId]: "Please enter a reply" }));
       return;
     }
     try {
@@ -167,19 +169,31 @@ export function NoteComments({ noteId, initialComments }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          body: replyBody,
-          parentCommentId: replyingToId,
+          body,
+          parentCommentId: parentId,
         }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.error ?? "返信の作成に失敗しました");
+        throw new Error(data?.error ?? "Failed to create reply");
       }
       setComments((prev) => [...prev, data as NoteComment]);
-      cancelReply();
+      setReplyDraft((prev) => {
+        const next = { ...prev };
+        delete next[parentId];
+        return next;
+      });
+      setReplyErrors((prev) => {
+        const next = { ...prev };
+        delete next[parentId];
+        return next;
+      });
     } catch (err) {
       console.error(err);
-      setReplyError(err instanceof Error ? err.message : "返信の作成に失敗しました");
+      setReplyErrors((prev) => ({
+        ...prev,
+        [parentId]: err instanceof Error ? err.message : "Failed to create reply",
+      }));
     } finally {
       setReplySubmitting(false);
     }
@@ -205,7 +219,7 @@ export function NoteComments({ noteId, initialComments }: Props) {
     event.preventDefault();
     if (!editingId) return;
     if (!editDraft.body.trim()) {
-      setEditError("コメントを入力してください");
+      setEditError("Please enter a comment");
       return;
     }
 
@@ -225,7 +239,7 @@ export function NoteComments({ noteId, initialComments }: Props) {
       );
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.error ?? "コメントの更新に失敗しました");
+        throw new Error(data?.error ?? "Failed to update comment");
       }
       setComments((prev) =>
         prev.map((comment) => (comment.id === editingId ? (data as NoteComment) : comment)),
@@ -233,7 +247,7 @@ export function NoteComments({ noteId, initialComments }: Props) {
       cancelEdit();
     } catch (err) {
       console.error(err);
-      setEditError(err instanceof Error ? err.message : "コメントの更新に失敗しました");
+      setEditError(err instanceof Error ? err.message : "Failed to update comment");
     }
   }
 
@@ -267,7 +281,7 @@ export function NoteComments({ noteId, initialComments }: Props) {
       );
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        throw new Error(data?.error ?? "コメントの削除に失敗しました");
+        throw new Error(data?.error ?? "Failed to delete comment");
       }
       setComments((prev) => removeWithDescendants(commentId, prev));
     } catch (err) {
@@ -279,19 +293,20 @@ export function NoteComments({ noteId, initialComments }: Props) {
   const renderComment = (comment: NoteComment, depth = 0): ReactElement => {
     const isEditing = editingId === comment.id;
     const childComments = commentsByParent.get(comment.id) ?? [];
-    const isReplyingHere = replyingToId === comment.id;
     const isMenuOpen = menuOpenId === comment.id;
     const lineLabel = comment.lineStart
       ? comment.lineEnd && comment.lineEnd !== comment.lineStart
         ? `Lines ${comment.lineStart}-${comment.lineEnd}`
         : `Line ${comment.lineStart}`
       : "Line not specified";
-    const containerClass =
-      depth > 0 ? "pl-4 ml-4 border-l border-border/40 space-y-3" : "space-y-3";
+    const isNested = depth > 0;
+    const cardClass = isNested
+      ? "relative rounded-md border border-border bg-white p-3 shadow-sm"
+      : "relative rounded-lg border border-border bg-white p-4 shadow-sm";
 
     return (
-      <div key={comment.id} className={containerClass}>
-        <article className="relative rounded-md border border-border/70 bg-card/70 p-3 shadow-sm">
+      <div className={isNested ? "pl-4" : ""}>
+        <article className={cardClass}>
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>{lineLabel}</span>
             <div className="flex items-center gap-2">
@@ -303,7 +318,7 @@ export function NoteComments({ noteId, initialComments }: Props) {
               <span>{new Date(comment.updatedAt).toLocaleString("ja-JP")}</span>
               <button
                 type="button"
-                className="rounded-full border border-border px-2 py-1 text-[10px] text-muted-foreground"
+                className="px-2 py-0 text-lg text-muted-foreground hover:text-foreground"
                 onClick={(event) => {
                   setMenuOpenId(isMenuOpen ? null : comment.id);
                   setMenuAnchor(event.currentTarget);
@@ -316,21 +331,9 @@ export function NoteComments({ noteId, initialComments }: Props) {
 
           {isMenuOpen && (
             <div
-              ref={menuRef}
+              ref={isMenuOpen ? menuRef : undefined}
               className="absolute right-3 top-10 z-10 w-32 rounded-md border border-border bg-card shadow-lg"
             >
-              {!comment.parentCommentId && (
-                <button
-                  type="button"
-                  className="block w-full px-3 py-2 text-left text-xs hover:bg-muted/40"
-                  onClick={() => {
-                    openReply(comment);
-                    setMenuOpenId(null);
-                  }}
-                >
-                  Reply
-                </button>
-              )}
               <button
                 type="button"
                 className="block w-full px-3 py-2 text-left text-xs hover:bg-muted/40"
@@ -401,14 +404,14 @@ export function NoteComments({ noteId, initialComments }: Props) {
                   />
                 </label>
               </div>
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={editResolved}
-                  onChange={(event) => setEditResolved(event.target.checked)}
-                />
-                解決済みにする
-              </label>
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={editResolved}
+          onChange={(event) => setEditResolved(event.target.checked)}
+        />
+        Mark as resolved
+      </label>
               {editError && <p className="text-sm text-destructive">{editError}</p>}
               <div className="flex justify-end gap-2 text-xs">
                 <button
@@ -427,60 +430,66 @@ export function NoteComments({ noteId, initialComments }: Props) {
               </div>
             </form>
           ) : (
-            <p className="mt-3 text-sm text-foreground">{comment.body}</p>
+            <p className="mt-3 whitespace-pre-wrap wrap-break-word text-sm text-foreground">
+              {comment.body}
+            </p>
+          )}
+
+          {!comment.parentCommentId && (
+            <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
+              {childComments.map((child) => (
+                <div key={child.id}>{renderComment(child, depth + 1)}</div>
+              ))}
+              <form
+                onSubmit={(event) => handleReplySubmit(event, comment.id)}
+                className="flex items-center gap-2"
+              >
+                <textarea
+                  ref={(element) => {
+                    replyRefs.current[comment.id] = element;
+                    if (element) {
+                      autoResizeReply(comment.id);
+                    }
+                  }}
+                  value={replyDraft[comment.id] ?? ""}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setReplyDraft((prev) => ({
+                      ...prev,
+                      [comment.id]: value,
+                    }));
+                    setTimeout(() => autoResizeReply(comment.id), 0);
+                  }}
+                  rows={1}
+                  className="w-full resize-none rounded-md bg-background/40 p-2 text-sm outline-none"
+                  placeholder="Leave a reply"
+                />
+                <button
+                  type="submit"
+                  className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground disabled:opacity-60"
+                  disabled={replySubmitting}
+                >
+                  {replySubmitting ? "Posting..." : "Reply"}
+                </button>
+              </form>
+              {replyErrors[comment.id] && (
+                <p className="text-xs text-destructive">{replyErrors[comment.id]}</p>
+              )}
+            </div>
           )}
         </article>
-
-        {isReplyingHere && (
-          <form
-            onSubmit={handleReplySubmit}
-            className="rounded-md border border-border/60 bg-card/40 p-3 text-sm"
-          >
-            <textarea
-              value={replyBody}
-              onChange={(event) => setReplyBody(event.target.value)}
-              className="w-full rounded-md border border-border bg-background/40 p-2 outline-none"
-              rows={3}
-              placeholder="返信を入力"
-            />
-            {replyError && <p className="mt-2 text-xs text-destructive">{replyError}</p>}
-            <div className="mt-2 flex justify-end gap-2 text-xs">
-              <button
-                type="button"
-                onClick={cancelReply}
-                className="rounded-md border border-border px-3 py-1 text-muted-foreground"
-                disabled={replySubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="rounded-md bg-foreground px-4 py-1 text-background disabled:opacity-60"
-                disabled={replySubmitting}
-              >
-                {replySubmitting ? "Posting..." : "Reply"}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {childComments.length > 0 && (
-          <div className="mt-3 space-y-3">
-            {childComments.map((child) => renderComment(child, depth + 1))}
-          </div>
-        )}
       </div>
     );
   };
 
   return (
-    <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+    <section className="space-y-4">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Comments</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{comments.length} 件</span>
+          <span>{comments.length} comments</span>
           {isFormOpen ? (
             <button
               type="button"
@@ -556,11 +565,13 @@ export function NoteComments({ noteId, initialComments }: Props) {
         </form>
       )}
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-5 space-y-4">
         {rootComments.length === 0 && (
-          <p className="text-sm text-muted-foreground">まだコメントはありません。</p>
+          <p className="text-sm text-muted-foreground">No comments yet.</p>
         )}
-        {rootComments.map((comment) => renderComment(comment))}
+        {rootComments.map((comment) => (
+          <div key={comment.id}>{renderComment(comment)}</div>
+        ))}
       </div>
     </section>
   );

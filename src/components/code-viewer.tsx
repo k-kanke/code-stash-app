@@ -33,6 +33,7 @@ export function CodeViewer({ code, language, noteId }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const normalized = language
     ? languageMap[language.toLowerCase()] ?? language.toLowerCase()
     : "typescript";
@@ -47,9 +48,21 @@ export function CodeViewer({ code, language, noteId }: Props) {
     setError(null);
   }, [code]);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const highlighted = useMemo(() => {
+    if (!mounted) {
+      return currentCode
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
     return Prism.highlight(currentCode, grammar, normalized);
-  }, [currentCode, grammar, normalized]);
+  }, [currentCode, grammar, normalized, mounted]);
 
   async function handleCopy() {
     try {
