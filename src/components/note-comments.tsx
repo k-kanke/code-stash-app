@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import type { NoteComment } from "@/lib/types";
 
@@ -32,6 +32,8 @@ export function NoteComments({ noteId, initialComments }: Props) {
   const [replyError, setReplyError] = useState<string | null>(null);
   const [replySubmitting, setReplySubmitting] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const orderedComments = useMemo(() => {
     return [...comments].sort(
@@ -54,6 +56,24 @@ export function NoteComments({ noteId, initialComments }: Props) {
   }, [orderedComments]);
 
   const rootComments = commentsByParent.get(ROOT_BUCKET) ?? [];
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!menuOpenId) return;
+      const target = event.target as Node;
+      if (
+        (menuRef.current && menuRef.current.contains(target)) ||
+        (menuAnchor && menuAnchor.contains(target as Node))
+      ) {
+        return;
+      }
+      setMenuOpenId(null);
+      setMenuAnchor(null);
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpenId, menuAnchor]);
 
   function parseLine(value: string): number | undefined {
     if (!value) return undefined;
@@ -176,17 +196,6 @@ export function NoteComments({ noteId, initialComments }: Props) {
     setEditError(null);
   }
 
-  function toggleResolved(comment: NoteComment) {
-    setEditingId(comment.id);
-    setEditDraft({
-      body: comment.body,
-      lineStart: comment.lineStart ? String(comment.lineStart) : "",
-      lineEnd: comment.lineEnd ? String(comment.lineEnd) : "",
-    });
-    setEditResolved(!comment.resolved);
-    setEditError(null);
-  }
-
   function cancelEdit() {
     setEditingId(null);
     setEditError(null);
@@ -225,6 +234,27 @@ export function NoteComments({ noteId, initialComments }: Props) {
     } catch (err) {
       console.error(err);
       setEditError(err instanceof Error ? err.message : "コメントの更新に失敗しました");
+    }
+  }
+
+  async function handleToggleResolved(comment: NoteComment) {
+    try {
+      const response = await fetch(`/api/notes?resource=comment&commentId=${comment.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resolved: !comment.resolved }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.error ?? "更新に失敗しました");
+      }
+      setComments((prev) =>
+        prev.map((item) => (item.id === comment.id ? (data as NoteComment) : item)),
+      );
+      setMenuOpenId(null);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "更新に失敗しました");
     }
   }
 
@@ -274,7 +304,10 @@ export function NoteComments({ noteId, initialComments }: Props) {
               <button
                 type="button"
                 className="rounded-full border border-border px-2 py-1 text-[10px] text-muted-foreground"
-                onClick={() => setMenuOpenId(isMenuOpen ? null : comment.id)}
+                onClick={(event) => {
+                  setMenuOpenId(isMenuOpen ? null : comment.id);
+                  setMenuAnchor(event.currentTarget);
+                }}
               >
                 …
               </button>
@@ -282,7 +315,10 @@ export function NoteComments({ noteId, initialComments }: Props) {
           </div>
 
           {isMenuOpen && (
-            <div className="absolute right-3 top-10 z-10 w-32 rounded-md border border-border bg-card shadow-lg">
+            <div
+              ref={menuRef}
+              className="absolute right-3 top-10 z-10 w-32 rounded-md border border-border bg-card shadow-lg"
+            >
               {!comment.parentCommentId && (
                 <button
                   type="button"
@@ -305,16 +341,17 @@ export function NoteComments({ noteId, initialComments }: Props) {
               >
                 Edit
               </button>
-              <button
-                type="button"
-                className="block w-full px-3 py-2 text-left text-xs hover:bg-muted/40"
-                onClick={() => {
-                  toggleResolved(comment);
-                  setMenuOpenId(null);
-                }}
-              >
-                {comment.resolved ? "Mark unresolved" : "Mark resolved"}
-              </button>
+              {!comment.parentCommentId && (
+                <button
+                  type="button"
+                  className="block w-full px-3 py-2 text-left text-xs hover:bg-muted/40"
+                  onClick={() => {
+                    handleToggleResolved(comment);
+                  }}
+                >
+                  {comment.resolved ? "Mark unresolved" : "Mark resolved"}
+                </button>
+              )}
               <button
                 type="button"
                 className="block w-full px-3 py-2 text-left text-xs text-destructive hover:bg-destructive/10"

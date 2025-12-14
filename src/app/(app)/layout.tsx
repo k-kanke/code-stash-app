@@ -4,7 +4,6 @@ import Link from "next/link";
 const mainNav = [
   { name: "Dashboard", href: "/" },
   { name: "Collection", href: "/collections" },
-  { name: "Note", href: "/notes/alpha" },
 ];
 
 function AppHeader() {
@@ -36,9 +35,6 @@ function AppHeader() {
             />
           </div>
           <div className="hidden items-center gap-4 text-sm md:flex">
-            <button className="rounded-md border border-border px-3 py-1">
-              作成
-            </button>
             <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-xs font-semibold">
               KK
             </div>

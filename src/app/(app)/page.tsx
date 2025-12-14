@@ -1,13 +1,31 @@
 import Link from "next/link";
-import { getCollections, notes } from "@/lib/mock-data";
+import { fetchCollections, fetchNotesByCollection } from "@/lib/api";
 
 export default async function DashboardPage() {
-  const [allCollections, allNotes] = await Promise.all([
-    getCollections(),
-    Promise.resolve(notes),
-  ]);
+  const collections = await fetchCollections();
+  const notesByCollection = await Promise.all(
+    collections.map(async (collection) => {
+      try {
+        return await fetchNotesByCollection(collection.id);
+      } catch {
+        return [];
+      }
+    }),
+  );
+  const allNotes = notesByCollection.flat();
 
-  const recentNotes = allNotes.slice(0, 3);
+  const latestCollections = [...collections]
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    )
+    .slice(0, 4);
+  const recentNotes = [...allNotes]
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    )
+    .slice(0, 3);
 
   return (
     <div className="space-y-8">
@@ -26,7 +44,7 @@ export default async function DashboardPage() {
           </Link>
         </header>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {allCollections.map((collection) => (
+          {latestCollections.map((collection) => (
             <Link
               key={collection.id}
               href={`/collections/${collection.id}`}
