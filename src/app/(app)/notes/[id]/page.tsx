@@ -37,10 +37,16 @@ export default async function NoteDetailPage({
     collectionNotes,
   );
 
+  const folderMap = new Map(folders.map((folder) => [folder.id, folder]));
   const selectedFolderId =
     typeof currentSearchParams.folder === "string"
       ? currentSearchParams.folder
       : note.folderId ?? undefined;
+  const selectedFolderName =
+    (selectedFolderId && folderMap.get(selectedFolderId)?.name) ??
+    collection?.name ??
+    "Collection";
+  const treeCollectionId = collection?.id ?? note.collectionId;
 
   return (
     <article className="space-y-6">
@@ -93,7 +99,13 @@ export default async function NoteDetailPage({
 
       <div className="grid gap-4 lg:grid-cols-12 xl:grid-cols-12">
         <div className="lg:col-span-2">
-          <ExplorerTree nodes={explorerNodes} activeNoteId={note.id} selectedFolderId={selectedFolderId} />
+          <ExplorerTree
+            nodes={explorerNodes}
+            activeNoteId={note.id}
+            selectedFolderId={selectedFolderId}
+            collectionId={treeCollectionId}
+            selectedFolderName={selectedFolderName}
+          />
         </div>
 
         <section className="space-y-2 lg:col-span-7 xl:col-span-8">

@@ -51,6 +51,7 @@ export default async function CollectionDetailPage({
       : undefined;
   const selectedFolderForTree =
     selectedFolderFromQuery ?? (activeNote?.folderId ? folderMap.get(activeNote.folderId) : undefined);
+  const selectedFolderNameForTree = selectedFolderForTree?.name ?? collection.name;
   const explorerNodes = buildExplorerTree(
     collection.id,
     collection.name,
@@ -99,6 +100,8 @@ export default async function CollectionDetailPage({
             nodes={explorerNodes}
             selectedFolderId={selectedFolderForTree?.id}
             activeNoteId={activeNote?.id}
+            collectionId={collection.id}
+            selectedFolderName={selectedFolderNameForTree}
           />
         </div>
         <div className="lg:col-span-9 xl:col-span-10">

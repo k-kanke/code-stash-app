@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 import { getServerApiBase } from "@/lib/server-api";
-
-function resolveUserId() {
-  const userId =
-    process.env.NEXT_PUBLIC_MOCK_USER_ID;
-  if (!userId) {
-    throw new Error("NEXT_PUBLIC_MOCK_USER_ID is not set");
-  }
-  return userId;
-}
+import { getRequestUserId } from "@/lib/request-user";
 
 export async function POST(request: Request) {
+  const requestUrl = new URL(request.url);
+  const resource = requestUrl.searchParams.get("resource");
+
+  if (resource === "folder") {
+    return handleFolderCreation(request);
+  }
+
+  return handleCollectionCreation(request);
+}
+
+async function handleCollectionCreation(request: Request) {
   try {
     const body = await request.json();
     const name = typeof body?.name === "string" ? body.name.trim() : "";
@@ -23,7 +26,7 @@ export async function POST(request: Request) {
     }
 
     const url = new URL(`${getServerApiBase()}/api/collections`);
-    url.searchParams.set("user_id", resolveUserId());
+    url.searchParams.set("user_id", getRequestUserId());
 
     const upstream = await fetch(url, {
       method: "POST",
@@ -33,31 +36,75 @@ export async function POST(request: Request) {
       body: JSON.stringify({ name, description }),
     });
 
-    if (!upstream.ok) {
-      const errorMessage = await upstream.text();
-      return NextResponse.json(
-        { error: errorMessage || "Failed to create collection" },
-        { status: upstream.status },
-      );
-    }
-
-    const text = await upstream.text();
-    if (!text) {
-      return NextResponse.json({ status: "created" }, { status: 201 });
-    }
-
-    try {
-      const data = JSON.parse(text);
-      return NextResponse.json(data, { status: upstream.status });
-    } catch (parseError) {
-      console.warn("Failed to parse upstream response", parseError);
-      return NextResponse.json({ status: "created" }, { status: 201 });
-    }
+    return formatUpstreamResponse(upstream, "Failed to create collection");
   } catch (error) {
     console.error("Failed to create collection", error);
     return NextResponse.json(
       { error: "Failed to create collection" },
       { status: 500 },
     );
+  }
+}
+
+async function handleFolderCreation(request: Request) {
+  try {
+    const body = await request.json();
+    const collectionId =
+      typeof body?.collectionId === "string" ? body.collectionId.trim() : "";
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    const parentFolderId =
+      typeof body?.parentFolderId === "string" && body.parentFolderId.length > 0
+        ? body.parentFolderId
+        : undefined;
+
+    if (!collectionId) {
+      return NextResponse.json({ error: "collectionId is required" }, { status: 400 });
+    }
+
+    if (!name) {
+      return NextResponse.json({ error: "name is required" }, { status: 400 });
+    }
+
+    const url = new URL(`${getServerApiBase()}/api/collections/${collectionId}/folders`);
+    url.searchParams.set("user_id", getRequestUserId());
+
+    const upstream = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name,
+        parent_folder_id: parentFolderId ?? null,
+      }),
+    });
+
+    return formatUpstreamResponse(upstream, "Failed to create folder");
+  } catch (error) {
+    console.error("Failed to create folder", error);
+    return NextResponse.json({ error: "Failed to create folder" }, { status: 500 });
+  }
+}
+
+async function formatUpstreamResponse(upstream: Response, fallback: string) {
+  if (!upstream.ok) {
+    const message = await upstream.text();
+    return NextResponse.json(
+      { error: message || fallback },
+      { status: upstream.status },
+    );
+  }
+
+  const text = await upstream.text();
+  if (!text) {
+    return NextResponse.json({ status: "created" }, { status: upstream.status });
+  }
+
+  try {
+    const data = JSON.parse(text);
+    return NextResponse.json(data, { status: upstream.status });
+  } catch (error) {
+    console.warn("Failed to parse upstream response", error);
+    return NextResponse.json({ status: "created" }, { status: upstream.status });
   }
 }

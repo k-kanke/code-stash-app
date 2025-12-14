@@ -43,6 +43,7 @@ type RawNoteDetail = {
 
 function getUserId() {
   return (
+    process.env.NEXT_PUBLIC_MOCK_USER_ID ??
     process.env.NEXT_PUBLIC_USER_ID ??
     process.env.USER_ID ??
     "11111111-1111-1111-1111-111111111111"
