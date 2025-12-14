@@ -37,16 +37,10 @@ export default async function NoteDetailPage({
     collectionNotes,
   );
 
-  const folderMap = new Map(folders.map((folder) => [folder.id, folder]));
   const selectedFolderId =
     typeof currentSearchParams.folder === "string"
       ? currentSearchParams.folder
       : note.folderId ?? undefined;
-  const selectedFolderName =
-    (selectedFolderId && folderMap.get(selectedFolderId)?.name) ??
-    collection?.name ??
-    "Collection";
-  const treeCollectionId = collection?.id ?? note.collectionId;
 
   return (
     <article className="space-y-6">
@@ -103,8 +97,7 @@ export default async function NoteDetailPage({
             nodes={explorerNodes}
             activeNoteId={note.id}
             selectedFolderId={selectedFolderId}
-            collectionId={treeCollectionId}
-            selectedFolderName={selectedFolderName}
+            collectionId={collection?.id ?? note.collectionId}
           />
         </div>
 

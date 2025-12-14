@@ -38,13 +38,11 @@ export function ExplorerTree({
   activeNoteId,
   selectedFolderId,
   collectionId,
-  selectedFolderName,
 }: {
   nodes: ExplorerNode[];
   activeNoteId?: string;
   selectedFolderId?: string;
   collectionId: string;
-  selectedFolderName?: string;
 }) {
   const initialOpen = useMemo(() => collectFolderIds(nodes), [nodes]);
   const [openIds, setOpenIds] = useState(initialOpen);
@@ -63,7 +61,6 @@ export function ExplorerTree({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const targetFolderLabel = selectedFolderName ?? "Collection root";
 
   const toggleFolder = (id: string) => {
     setOpenIds((prev) => {
@@ -229,13 +226,7 @@ export function ExplorerTree({
 
   return (
     <aside className="rounded-lg border border-border bg-card shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Explorer</p>
-          <p className="text-[11px] text-muted-foreground/80">
-            {targetFolderLabel}
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-4 py-3">
         <div className="flex gap-2 text-[11px]">
           <button
             type="button"
@@ -269,7 +260,6 @@ export function ExplorerTree({
       {isFolderDialogOpen && (
         <Dialog
           title="新規フォルダ"
-          description={`${targetFolderLabel} に追加`}
           onClose={() => {
             if (folderLoading) return;
             setIsFolderDialogOpen(false);
@@ -316,7 +306,6 @@ export function ExplorerTree({
       {isNoteDialogOpen && (
         <Dialog
           title="新規ノート"
-          description={`${targetFolderLabel} に追加`}
           onClose={() => {
             if (noteLoading) return;
             setIsNoteDialogOpen(false);

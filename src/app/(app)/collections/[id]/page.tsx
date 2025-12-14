@@ -51,7 +51,6 @@ export default async function CollectionDetailPage({
       : undefined;
   const selectedFolderForTree =
     selectedFolderFromQuery ?? (activeNote?.folderId ? folderMap.get(activeNote.folderId) : undefined);
-  const selectedFolderNameForTree = selectedFolderForTree?.name ?? collection.name;
   const explorerNodes = buildExplorerTree(
     collection.id,
     collection.name,
@@ -75,7 +74,6 @@ export default async function CollectionDetailPage({
   return (
     <div className="space-y-6">
       <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground">Collection</p>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">{collection.name}</h1>
@@ -101,7 +99,6 @@ export default async function CollectionDetailPage({
             selectedFolderId={selectedFolderForTree?.id}
             activeNoteId={activeNote?.id}
             collectionId={collection.id}
-            selectedFolderName={selectedFolderNameForTree}
           />
         </div>
         <div className="lg:col-span-9 xl:col-span-10">
@@ -139,10 +136,7 @@ function FolderOverview({
   return (
     <section className="rounded-lg border border-border bg-card shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Explorer</p>
-          <p className="text-sm text-muted-foreground">{breadcrumbs.join(" / ")}</p>
-        </div>
+        <p className="text-sm text-muted-foreground">{breadcrumbs.join(" / ")}</p>
         <div className="text-xs text-muted-foreground">
           {folders.length} folders · {notes.length} notes
         </div>
