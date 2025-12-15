@@ -156,13 +156,15 @@ function translateStatus(status: string, approved: boolean) {
     return "承認済み";
   }
   switch (status) {
-    case "pending":
-      return "未承認";
-    case "expired":
-      return "期限切れ";
-    case "denied":
-      return "拒否済み";
-    default:
-      return "不明";
+  case "pending":
+    return "未承認";
+  case "expired":
+    return "期限切れ";
+  case "denied":
+    return "拒否済み";
+  case "consumed":
+    return "承認済み";
+  default:
+    return "不明";
   }
 }
