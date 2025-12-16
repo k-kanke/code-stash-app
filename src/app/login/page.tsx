@@ -1,12 +1,13 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Mode = "login" | "register";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -51,7 +52,9 @@ export default function LoginPage() {
         );
       }
 
-      router.replace("/");
+      const nextParam = searchParams.get("next");
+      const destination = sanitizeNext(nextParam);
+      router.replace(destination);
       router.refresh();
     } catch (err) {
       console.error(err);
@@ -165,4 +168,14 @@ export default function LoginPage() {
       </div>
     </div>
   );
+}
+
+function sanitizeNext(nextParam: string | null): string {
+  if (!nextParam) {
+    return "/";
+  }
+  if (!nextParam.startsWith("/")) {
+    return "/";
+  }
+  return nextParam;
 }

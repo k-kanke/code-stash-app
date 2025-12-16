@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type DeviceCodeStatus = {
   client_name: string;
@@ -22,6 +23,18 @@ export function DeviceVerificationForm({ initialUserCode = "" }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [approved, setApproved] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const codeFromQuery = searchParams.get("user_code");
+    if (codeFromQuery && codeFromQuery !== userCode) {
+      setUserCode(codeFromQuery);
+      return;
+    }
+    if (initialUserCode && initialUserCode !== userCode) {
+      setUserCode(initialUserCode);
+    }
+  }, [searchParams, initialUserCode, userCode]);
 
   const normalizedCode = useMemo(() => userCode.trim(), [userCode]);
 
