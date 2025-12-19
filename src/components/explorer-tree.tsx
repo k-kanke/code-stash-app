@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -39,19 +39,21 @@ export function ExplorerTree({
   activeNoteId,
   selectedFolderId,
   collectionId,
+  title,
 }: {
   nodes: ExplorerNode[];
   activeNoteId?: string;
   selectedFolderId?: string;
   collectionId: string;
+  title?: string;
 }) {
   const initialOpen = useMemo(() => collectFolderIds(nodes), [nodes]);
   const [openIds, setOpenIds] = useState(initialOpen);
-  const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
+  const [creatingFolderInline, setCreatingFolderInline] = useState(false);
   const [folderName, setFolderName] = useState("");
   const [folderError, setFolderError] = useState<string | null>(null);
   const [folderLoading, setFolderLoading] = useState(false);
-  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
+  const [creatingNoteInline, setCreatingNoteInline] = useState(false);
   const [noteTitle, setNoteTitle] = useState("");
   const [noteLanguage, setNoteLanguage] = useState("typescript");
   const [noteTags, setNoteTags] = useState("");
@@ -80,7 +82,59 @@ export function ExplorerTree({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [folderInsertionParent, setFolderInsertionParent] = useState<string | undefined>(undefined);
+  const [noteInsertionParent, setNoteInsertionParent] = useState<string | undefined>(undefined);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const folderInlineFormRef = useRef<HTMLDivElement | null>(null);
+  const noteInlineFormRef = useRef<HTMLDivElement | null>(null);
+  const beginFolderCreation = () => {
+    if (folderLoading) return;
+    const parentId = selectedFolderId ?? undefined;
+    setFolderInsertionParent(parentId);
+    if (parentId) {
+      setOpenIds((prev) => {
+        const next = new Set(prev);
+        next.add(parentId);
+        return next;
+      });
+    }
+    setFolderError(null);
+    setFolderName("");
+    setCreatingFolderInline(true);
+  };
+  const cancelFolderCreation = useCallback(() => {
+    if (folderLoading) return;
+    setCreatingFolderInline(false);
+    setFolderInsertionParent(undefined);
+    setFolderName("");
+    setFolderError(null);
+  }, [folderLoading]);
+  const beginNoteCreation = () => {
+    if (noteLoading) return;
+    const parentId = selectedFolderId ?? undefined;
+    setNoteInsertionParent(parentId);
+    if (parentId) {
+      setOpenIds((prev) => {
+        const next = new Set(prev);
+        next.add(parentId);
+        return next;
+      });
+    }
+    setNoteError(null);
+    setNoteTitle("");
+    setNoteLanguage("");
+    setNoteTags("");
+    setNoteCode("");
+    setNoteContent("");
+    setCreatingNoteInline(true);
+  };
+  const cancelNoteCreation = useCallback(() => {
+    if (noteLoading) return;
+    setCreatingNoteInline(false);
+    setNoteInsertionParent(undefined);
+    setNoteTitle("");
+    setNoteError(null);
+  }, [noteLoading]);
 
   useEffect(() => {
     if (!openMenuNode) {
@@ -103,6 +157,29 @@ export function ExplorerTree({
       menuRef.current = null;
     };
   }, [openMenuNode]);
+
+  useEffect(() => {
+    if (!creatingFolderInline && !creatingNoteInline) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (folderInlineFormRef.current && folderInlineFormRef.current.contains(target)) {
+        return;
+      }
+      if (noteInlineFormRef.current && noteInlineFormRef.current.contains(target)) {
+        return;
+      }
+      if (creatingFolderInline) {
+        cancelFolderCreation();
+      }
+      if (creatingNoteInline) {
+        cancelNoteCreation();
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+    };
+  }, [creatingFolderInline, creatingNoteInline, cancelFolderCreation, cancelNoteCreation]);
 
   const toggleFolder = (id: string) => {
     setOpenIds((prev) => {
@@ -152,7 +229,8 @@ export function ExplorerTree({
         const data = await response.json().catch(() => null);
         throw new Error(data?.error ?? "フォルダの作成に失敗しました");
       }
-      setIsFolderDialogOpen(false);
+      setCreatingFolderInline(false);
+      setFolderInsertionParent(undefined);
       setFolderName("");
       setFolderError(null);
       router.refresh();
@@ -168,10 +246,6 @@ export function ExplorerTree({
     event.preventDefault();
     if (!noteTitle.trim()) {
       setNoteError("タイトルを入力してください");
-      return;
-    }
-    if (!noteCode.trim()) {
-      setNoteError("コードを入力してください");
       return;
     }
     try {
@@ -195,7 +269,8 @@ export function ExplorerTree({
         const data = await response.json().catch(() => null);
         throw new Error(data?.error ?? "ノートの作成に失敗しました");
       }
-      setIsNoteDialogOpen(false);
+      setCreatingNoteInline(false);
+      setNoteInsertionParent(undefined);
       setNoteTitle("");
       setNoteLanguage("typescript");
       setNoteTags("");
@@ -340,25 +415,102 @@ export function ExplorerTree({
     }
   };
 
-  const renderNode = (node: ExplorerNode, depth = 0) => {
-    const padding = depth === 0 ? 4 : depth * 12 + 4;
+  const renderFolderInlineForm = () => (
+    <div ref={folderInlineFormRef} className="space-y-1 rounded-md bg-muted/40 px-2 py-1 text-sm">
+      <form
+        onSubmit={handleCreateFolder}
+        className="flex items-center gap-2"
+      >
+        <span aria-hidden>📁</span>
+        <input
+          autoFocus
+          value={folderName}
+          onChange={(event) => setFolderName(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              cancelFolderCreation();
+            }
+          }}
+          className="flex-1 rounded-sm border border-transparent bg-transparent px-1 text-foreground outline-none"
+          placeholder="New folder name"
+        />
+        <div className="flex gap-1 text-[11px] uppercase tracking-widest">
+          <button type="submit" disabled={folderLoading} className="text-foreground">
+            Enter
+          </button>
+          <button type="button" onClick={cancelFolderCreation} className="text-muted-foreground">
+            Esc
+          </button>
+        </div>
+      </form>
+      {folderError && <p className="px-1 text-xs text-destructive">{folderError}</p>}
+    </div>
+  );
+
+  const renderNoteInlineForm = () => (
+    <div ref={noteInlineFormRef} className="space-y-1 rounded-md bg-muted/40 px-2 py-1 text-sm">
+      <form
+        onSubmit={handleCreateNote}
+        className="flex items-center gap-2"
+      >
+        <span aria-hidden>📄</span>
+        <input
+          autoFocus
+          value={noteTitle}
+          onChange={(event) => setNoteTitle(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              cancelNoteCreation();
+            }
+          }}
+          className="flex-1 rounded-sm border border-transparent bg-transparent px-1 text-foreground outline-none"
+          placeholder="New note title"
+        />
+        <div className="flex gap-1 text-[11px] uppercase tracking-widest">
+          <button type="submit" disabled={noteLoading} className="text-foreground">
+            Enter
+          </button>
+          <button type="button" onClick={cancelNoteCreation} className="text-muted-foreground">
+            Esc
+          </button>
+        </div>
+      </form>
+      {noteError && <p className="px-1 text-xs text-destructive">{noteError}</p>}
+    </div>
+  );
+
+  const renderNode = (node: ExplorerNode, depth = 0, isFirstSibling = false) => {
+    const folderPadding = 10 + depth * 10;
+    const notePadding = folderPadding + 6;
+    const folderGuide = folderPadding - 6;
+    const noteGuide = notePadding - 8;
+    const dividerClass = isFirstSibling ? "relative" : "relative mt-0.5 border-t border-border/40 pt-0.5";
 
     if (node.type === "folder") {
       const isOpen = openIds.has(node.id);
       const isSelected = selectedFolderId === node.id;
       const isCollectionRoot = node.meta?.isRoot ?? false;
       return (
-        <div key={node.id}>
+        <div key={node.id} className={dividerClass}>
           <div
-            className={`relative flex items-center gap-2 rounded-md px-2 py-1 text-sm transition ${
-              isSelected ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
+            className={`group relative flex w-full items-center gap-1 rounded-md px-2 py-0.5 text-[0.8rem] transition ${
+              isSelected ? "bg-muted/40 text-foreground" : "bg-white/70 text-muted-foreground hover:bg-muted/40"
             }`}
-            style={{ paddingLeft: `${padding}px` }}
+            style={{ paddingLeft: `${folderPadding}px` }}
           >
+            {depth > 0 && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute top-0.5 bottom-0.5 w-px bg-border/40"
+                style={{ left: `${folderGuide}px` }}
+              />
+            )}
             <button
               type="button"
               onClick={() => toggleFolder(node.id)}
-              className="text-base text-muted-foreground transition hover:text-foreground"
+              className="flex h-4 w-4 items-center justify-center rounded-full border border-white/70 text-[9px] text-muted-foreground transition hover:border-foreground/40 hover:text-foreground"
               aria-label={isOpen ? "collapse folder" : "expand folder"}
             >
               {isOpen ? "⌄" : "›"}
@@ -383,7 +535,7 @@ export function ExplorerTree({
                         : { id: node.id, type: "folder" },
                     );
                   }}
-                  className="rounded p-1 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  className="rounded-full border border-transparent p-0.5 text-[11px] text-muted-foreground transition hover:border-border/60 hover:bg-white/80 hover:text-foreground"
                   aria-label="folder menu"
                 >
                   ⋯
@@ -395,7 +547,7 @@ export function ExplorerTree({
                         menuRef.current = element;
                       }
                     }}
-                    className="absolute right-2 top-full z-20 mt-1 w-32 rounded-md border border-border bg-card py-1 shadow-lg"
+                    className="absolute right-2 top-full z-20 mt-1.5 w-32 rounded-lg border border-border bg-white/95 p-1 shadow-xl"
                   >
                     <button
                       type="button"
@@ -405,7 +557,7 @@ export function ExplorerTree({
                         setRenameError(null);
                         setOpenMenuNode(null);
                       }}
-                      className="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-muted"
+                      className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm transition hover:bg-muted/50"
                     >
                       Rename
                     </button>
@@ -416,7 +568,7 @@ export function ExplorerTree({
                         setOpenMenuNode(null);
                         setDeleteError(null);
                       }}
-                      className="flex w-full items-center px-3 py-2 text-left text-sm text-destructive hover:bg-muted"
+                      className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-destructive transition hover:bg-muted/50"
                     >
                       Delete
                     </button>
@@ -425,8 +577,12 @@ export function ExplorerTree({
               </>
             )}
           </div>
-          {isOpen && node.children && (
-            <div className="space-y-1">{node.children.map((child) => renderNode(child, depth + 1))}</div>
+          {isOpen && (
+            <div className="space-y-1 pl-1">
+              {creatingFolderInline && folderInsertionParent === node.id && renderFolderInlineForm()}
+              {creatingNoteInline && noteInsertionParent === node.id && renderNoteInlineForm()}
+              {node.children?.map((child, index) => renderNode(child, depth + 1, index === 0))}
+            </div>
           )}
         </div>
       );
@@ -435,153 +591,117 @@ export function ExplorerTree({
     const isActive = activeNoteId === node.id;
 
     return (
-      <div
-        key={node.id}
-        className={`relative flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm transition ${
-          isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
-        }`}
-        style={{ paddingLeft: `${padding + 12}px` }}
-      >
-        <Link
-          href={node.meta?.href ?? "#"}
-          className="flex flex-1 items-center gap-2"
-          scroll={false}
+      <div key={node.id} className={dividerClass}>
+        <div
+          className={`group relative flex w-full items-center gap-1.5 rounded-md px-2 py-0.5 text-[0.8rem] transition ${
+            isActive ? "bg-muted/40 text-foreground" : "bg-white/70 text-muted-foreground hover:bg-muted/40"
+          }`}
+          style={{ paddingLeft: `${notePadding}px` }}
         >
-          <FileIcon />
-          <span className="flex-1 truncate text-foreground">{node.label}</span>
-        </Link>
-        <button
-          type="button"
-          onClick={() => {
-            setDeleteError(null);
-            setOpenMenuNode((prev) =>
-              prev && prev.id === node.id && prev.type === "note"
-                ? null
-                : { id: node.id, type: "note" },
-            );
-          }}
-          className="rounded p-1 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          aria-label="note menu"
-        >
-          ⋯
-        </button>
-        {openMenuNode?.type === "note" && openMenuNode.id === node.id && (
-          <div
-            ref={(element) => {
-              if (openMenuNode?.type === "note" && openMenuNode.id === node.id) {
-                menuRef.current = element;
-              }
-            }}
-            className="absolute right-2 top-full z-20 mt-1 w-32 rounded-md border border-border bg-card py-1 shadow-lg"
+          {depth > 0 && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute top-0.5 bottom-0.5 w-px bg-border/40"
+              style={{ left: `${noteGuide}px` }}
+            />
+          )}
+          <Link
+            href={node.meta?.href ?? "#"}
+            className="flex flex-1 items-center gap-2"
+            scroll={false}
           >
-            <button
-              type="button"
-              onClick={() => {
-                setRenameTarget({ id: node.id, name: node.label, type: "note" });
-                setRenameName(node.label);
-                setRenameError(null);
-                setOpenMenuNode(null);
+            <FileIcon />
+            <span className="flex-1 truncate text-sm font-medium text-foreground">{node.label}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteError(null);
+              setOpenMenuNode((prev) =>
+                prev && prev.id === node.id && prev.type === "note"
+                  ? null
+                  : { id: node.id, type: "note" },
+              );
+            }}
+            className="rounded-full border border-transparent p-0.5 text-[10px] text-muted-foreground transition hover:border-border/60 hover:bg-white/80 hover:text-foreground"
+            aria-label="note menu"
+          >
+            ⋯
+          </button>
+          {openMenuNode?.type === "note" && openMenuNode.id === node.id && (
+            <div
+              ref={(element) => {
+                if (openMenuNode?.type === "note" && openMenuNode.id === node.id) {
+                  menuRef.current = element;
+                }
               }}
-              className="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-muted"
+              className="absolute right-2 top-full z-20 mt-1.5 w-32 rounded-lg border border-border bg-white/95 p-1 shadow-xl"
             >
-              Rename
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPendingDelete({ id: node.id, name: node.label, type: "note" });
-                setOpenMenuNode(null);
-                setDeleteError(null);
-              }}
-              className="flex w-full items-center px-3 py-2 text-left text-sm text-destructive hover:bg-muted"
-            >
-              Delete
-            </button>
-          </div>
-        )}
+              <button
+                type="button"
+                onClick={() => {
+                  setRenameTarget({ id: node.id, name: node.label, type: "note" });
+                  setRenameName(node.label);
+                  setRenameError(null);
+                  setOpenMenuNode(null);
+                }}
+                className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm transition hover:bg-muted/50"
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingDelete({ id: node.id, name: node.label, type: "note" });
+                  setOpenMenuNode(null);
+                  setDeleteError(null);
+                }}
+                className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-destructive transition hover:bg-muted/50"
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
 
   return (
-    <aside className="rounded-lg border border-border bg-card shadow-sm">
-      <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-4 py-3">
-        <div className="flex gap-2 text-[11px]">
+    <aside className="rounded-[22px] border border-white/70 bg-white/85 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-t-[22px] border-b border-border/40 bg-gradient-to-r from-white via-accent-soft/20 to-white px-3.5 py-3">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground">Collection</p>
+          <p className="text-sm font-semibold text-foreground">{title ?? "Folders"}</p>
+        </div>
+        <div className="flex gap-2 text-[11px] font-semibold uppercase tracking-widest">
           <button
             type="button"
             onClick={() => {
-              setFolderError(null);
-              setFolderName("");
-              setIsFolderDialogOpen(true);
+              if (folderLoading || creatingFolderInline) return;
+              beginFolderCreation();
             }}
-            className="rounded border border-border px-2 py-1 uppercase tracking-wide text-muted-foreground hover:border-foreground/40"
+            className="rounded-full border border-border/60 bg-white/70 px-2.5 py-0.5 text-muted-foreground transition hover:border-accent/60 hover:text-foreground"
           >
             + Folder
           </button>
           <button
             type="button"
             onClick={() => {
-              setNoteError(null);
-              setNoteTitle("");
-              setNoteLanguage("typescript");
-              setNoteTags("");
-              setNoteCode("");
-              setNoteContent("");
-              setIsNoteDialogOpen(true);
+              if (noteLoading || creatingNoteInline) return;
+              beginNoteCreation();
             }}
-            className="rounded border border-border px-2 py-1 uppercase tracking-wide text-muted-foreground hover:border-foreground/40"
+            className="rounded-full border border-border/60 bg-white/70 px-2.5 py-0.5 text-muted-foreground transition hover:border-accent/60 hover:text-foreground"
           >
             + Note
           </button>
         </div>
       </div>
-      <div className="space-y-1 p-2">{nodes.map((node) => renderNode(node))}</div>
-      {isFolderDialogOpen && (
-        <Dialog
-          title="New Folder"
-          onClose={() => {
-            if (folderLoading) return;
-            setIsFolderDialogOpen(false);
-            setFolderError(null);
-          }}
-        >
-          <form onSubmit={handleCreateFolder} className="space-y-4">
-            <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Name
-              </label>
-              <input
-                value={folderName}
-                onChange={(event) => setFolderName(event.target.value)}
-                className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm outline-none focus:border-foreground"
-                placeholder="Folder Name"
-                maxLength={80}
-              />
-            </div>
-            {folderError && <p className="text-sm text-destructive">{folderError}</p>}
-            <div className="flex justify-end gap-2 text-sm">
-              <button
-                type="button"
-                onClick={() => {
-                  if (folderLoading) return;
-                  setIsFolderDialogOpen(false);
-                  setFolderError(null);
-                }}
-                className="rounded-md border border-border px-4 py-2 text-muted-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={folderLoading}
-                className="rounded-md bg-foreground px-4 py-2 font-medium text-background disabled:opacity-60"
-              >
-                {folderLoading ? "Creating..." : "Create"}
-              </button>
-            </div>
-          </form>
-        </Dialog>
-      )}
+      <div className="max-h-[65vh] overflow-y-auto px-1.5 py-2 space-y-1">
+        {creatingFolderInline && !folderInsertionParent && renderFolderInlineForm()}
+        {creatingNoteInline && !noteInsertionParent && renderNoteInlineForm()}
+        {nodes.map((node, index) => renderNode(node, 0, index === 0))}
+      </div>
       {pendingDelete && (
         <Dialog
           title={pendingDelete.type === "folder" ? "Delete Folder" : "Delete Note"}
@@ -677,101 +797,13 @@ export function ExplorerTree({
           </form>
         </Dialog>
       )}
-      {isNoteDialogOpen && (
-        <Dialog
-          title="New Note"
-          onClose={() => {
-            if (noteLoading) return;
-            setIsNoteDialogOpen(false);
-            setNoteError(null);
-          }}
-        >
-          <form onSubmit={handleCreateNote} className="space-y-4">
-            <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Title</label>
-              <input
-                value={noteTitle}
-                onChange={(event) => setNoteTitle(event.target.value)}
-                className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm outline-none focus:border-foreground"
-                placeholder="Note Name"
-              />
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div>
-                <label className="text-xs uppercase tracking-wide text-muted-foreground">Language</label>
-                <input
-                  value={noteLanguage}
-                  onChange={(event) => setNoteLanguage(event.target.value)}
-                  className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm outline-none focus:border-foreground"
-                  placeholder="typescript"
-                />
-              </div>
-              <div>
-                <label className="text-xs uppercase tracking-wide text-muted-foreground">Tags</label>
-                <input
-                  value={noteTags}
-                  onChange={(event) => setNoteTags(event.target.value)}
-                  className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm outline-none focus:border-foreground"
-                  placeholder="tag1, tag2"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Code</label>
-              <textarea
-                value={noteCode}
-                onChange={(event) => setNoteCode(event.target.value)}
-                className="mt-2 h-32 w-full rounded-md border border-border bg-background p-2 font-mono text-sm outline-none focus:border-foreground"
-                placeholder="write code"
-              />
-            </div>
-            <div>
-              <label className="text-xs uppercase tracking-wide text-muted-foreground">Memo</label>
-              <textarea
-                value={noteContent}
-                onChange={(event) => setNoteContent(event.target.value)}
-                className="mt-2 h-24 w-full rounded-md border border-border bg-background p-2 text-sm outline-none focus:border-foreground"
-                placeholder="leave a memo"
-              />
-            </div>
-            {noteError && (
-              <div
-                role="alert"
-                className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-600"
-              >
-                {noteError}
-              </div>
-            )}
-            <div className="flex justify-end gap-2 text-sm">
-              <button
-                type="button"
-                onClick={() => {
-                  if (noteLoading) return;
-                  setIsNoteDialogOpen(false);
-                  setNoteError(null);
-                }}
-                className="rounded-md border border-border px-4 py-2 text-muted-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={noteLoading}
-                className="rounded-md bg-foreground px-4 py-2 font-medium text-background disabled:opacity-60"
-              >
-                {noteLoading ? "Creating..." : "Create"}
-              </button>
-            </div>
-          </form>
-        </Dialog>
-      )}
     </aside>
   );
 }
 
 function FolderIcon({ open }: { open: boolean }) {
   return (
-    <span className="flex h-4 w-4 items-center justify-center text-muted-foreground">
+    <span className="flex h-5 w-5 items-center justify-center text-[11px] text-accent">
       {open ? "📂" : "📁"}
     </span>
   );
@@ -779,7 +811,7 @@ function FolderIcon({ open }: { open: boolean }) {
 
 function FileIcon() {
   return (
-    <span className="flex h-4 w-4 items-center justify-center text-muted-foreground">
+    <span className="flex h-5 w-5 items-center justify-center text-[11px] text-muted-foreground">
       📄
     </span>
   );
@@ -798,7 +830,7 @@ function Dialog({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-lg">
+      <div className="w-full max-w-5xl rounded-2xl border border-border bg-background p-8 shadow-2xl">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-muted-foreground">{title}</p>

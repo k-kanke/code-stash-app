@@ -79,25 +79,6 @@ export default async function CollectionDetailPage({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold">{collection.name}</h1>
-            <p className="text-muted-foreground">{collection.description}</p>
-          </div>
-          <div className="flex gap-4 text-sm text-muted-foreground">
-            <div>
-              <p className="text-xs uppercase tracking-wide">Notes</p>
-              <p className="text-lg font-semibold text-foreground">{collection.noteCount}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide">Updated</p>
-              <p>{new Date(collection.updatedAt).toLocaleDateString("ja-JP")}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="lg:col-span-3 xl:col-span-2">
           <ExplorerTree
@@ -105,6 +86,7 @@ export default async function CollectionDetailPage({
             selectedFolderId={selectedFolderForTree?.id}
             activeNoteId={activeNote?.id}
             collectionId={collection.id}
+            title={collection.name}
           />
         </div>
         <div className="lg:col-span-9 xl:col-span-10">
@@ -195,51 +177,17 @@ function NoteDetailPanel({
   comments: NoteComment[];
 }) {
   return (
-    <div className="space-y-4">
-      <header className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <div className="text-[11px] text-muted-foreground">
+    <div className="grid gap-4 xl:grid-cols-12">
+      <section className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-sm xl:col-span-8">
+        <CodeViewer code={note.code} language={note.language} noteId={note.id} />
+      </section>
+
+      <aside className="rounded-lg border border-border bg-card p-4 shadow-sm xl:col-span-4">
+        <div className="mb-3 text-[11px] uppercase tracking-widest text-muted-foreground">
           {breadcrumb.concat(note.title).join(" / ")}
         </div>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold leading-tight">{note.title}</h2>
-          </div>
-          <div className="flex gap-6 text-[10px] uppercase tracking-wide text-muted-foreground">
-            <p>
-              <span className="text-[9px]">Created</span>{" "}
-              <span className="text-foreground">{formatDate(note.createdAt)}</span>
-            </p>
-            <p>
-              <span className="text-[9px]">Updated</span>{" "}
-              <span className="text-foreground">{formatDate(note.updatedAt)}</span>
-            </p>
-          </div>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1">
-          {note.tags.length > 0 ? (
-            note.tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground"
-              >
-                {tag}
-              </span>
-            ))
-          ) : (
-            <span className="text-[11px] text-muted-foreground">No tags yet.</span>
-          )}
-        </div>
-      </header>
-
-      <div className="grid gap-4 xl:grid-cols-12">
-        <section className="space-y-4 xl:col-span-8">
-          <CodeViewer code={note.code} language={note.language} noteId={note.id} />
-        </section>
-
-        <aside className="xl:col-span-4">
-          <NoteComments noteId={note.id} initialComments={comments} />
-        </aside>
-      </div>
+        <NoteComments noteId={note.id} initialComments={comments} />
+      </aside>
     </div>
   );
 }
@@ -293,9 +241,4 @@ function buildBreadcrumb(
   }
   segments.push(rootLabel);
   return segments.reverse();
-}
-
-function formatDate(value?: string) {
-  if (!value) return "-";
-  return new Date(value).toLocaleDateString("ja-JP");
 }
