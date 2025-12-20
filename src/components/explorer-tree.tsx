@@ -454,7 +454,6 @@ export function ExplorerTree({
         onSubmit={handleCreateNote}
         className="flex items-center gap-2"
       >
-        <span aria-hidden>📄</span>
         <input
           autoFocus
           value={noteTitle}
@@ -610,7 +609,6 @@ export function ExplorerTree({
             className="flex flex-1 items-center gap-2"
             scroll={false}
           >
-            <FileIcon />
             <span className="flex-1 truncate text-sm font-medium text-foreground">{node.label}</span>
           </Link>
           <button
@@ -805,14 +803,6 @@ function FolderIcon({ open }: { open: boolean }) {
   return (
     <span className="flex h-5 w-5 items-center justify-center text-[11px] text-accent">
       {open ? "📂" : "📁"}
-    </span>
-  );
-}
-
-function FileIcon() {
-  return (
-    <span className="flex h-5 w-5 items-center justify-center text-[11px] text-muted-foreground">
-      📄
     </span>
   );
 }
