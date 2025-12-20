@@ -29,7 +29,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-[32px] border border-white/70 bg-white/85 p-6 shadow-[0_30px_80px_rgba(15,23,42,0.12)]">
+      <section className="rounded-4xl border border-white/70 bg-white/85 p-6 shadow-[0_30px_80px_rgba(15,23,42,0.12)]">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground">
@@ -49,7 +49,7 @@ export default async function DashboardPage() {
             <Link
               key={collection.id}
               href={`/collections/${collection.id}`}
-              className="group rounded-2xl border border-white/70 bg-gradient-to-br from-white via-accent-soft/40 to-white p-5 text-left shadow-[0_15px_45px_rgba(15,23,42,0.1)] transition hover:-translate-y-0.5 hover:border-accent/40"
+              className="group rounded-2xl border border-white/70 bg-linear-to-br from-white via-accent-soft/40 to-white p-5 text-left shadow-[0_15px_45px_rgba(15,23,42,0.1)] transition hover:-translate-y-0.5 hover:border-accent/40"
             >
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                 {new Date(collection.updatedAt).toLocaleDateString("ja-JP")}
@@ -68,7 +68,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="rounded-[32px] border border-white/70 bg-white/85 p-5 shadow-[0_30px_80px_rgba(15,23,42,0.12)]">
+      <section className="rounded-4xl border border-white/70 bg-white/85 p-5 shadow-[0_30px_80px_rgba(15,23,42,0.12)]">
         <header className="flex items-center justify-between">
           <div>
             <p className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground">
