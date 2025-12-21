@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { buildExplorerTree } from "@/lib/explorer";
 
+export const dynamicParams = false;
 export async function generateStaticParams() {
   return [];
 }
@@ -20,10 +21,11 @@ export default async function NoteDetailPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const [{ id }, currentSearchParams] = await Promise.all([params, searchParams]);
+  const { id } = params;
+  const currentSearchParams = searchParams;
   const note = await fetchNoteById(id);
 
   if (!note) {
