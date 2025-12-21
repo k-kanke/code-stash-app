@@ -13,6 +13,10 @@ import {
 import type { Folder, Note, NoteComment } from "@/lib/types";
 import { buildExplorerTree } from "@/lib/explorer";
 
+export async function generateStaticParams() {
+  return [];
+}
+
 export default async function CollectionDetailPage({
   params,
   searchParams,
