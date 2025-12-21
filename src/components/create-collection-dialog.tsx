@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/client-api";
 
 export function CreateCollectionDialog() {
   const router = useRouter();
@@ -27,7 +26,7 @@ export function CreateCollectionDialog() {
     }
     try {
       setLoading(true);
-      const response = await apiFetch("/api/collections", {
+      const response = await fetch("/api/collections", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

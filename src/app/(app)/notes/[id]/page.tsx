@@ -12,20 +12,15 @@ import {
 } from "@/lib/api";
 import { buildExplorerTree } from "@/lib/explorer";
 
-export const dynamicParams = false;
-export async function generateStaticParams() {
-  return [];
-}
-
 export default async function NoteDetailPage({
   params,
   searchParams,
 }: {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { id } = params;
-  const currentSearchParams = searchParams;
+  const { id } = await params;
+  const currentSearchParams = await searchParams;
   const note = await fetchNoteById(id);
 
   if (!note) {

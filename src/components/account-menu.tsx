@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/client-api";
 
 type AccountMenuProps = {
   initials?: string;
@@ -36,7 +35,7 @@ export function AccountMenu({ initials = "KK" }: AccountMenuProps) {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiFetch("/api/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "DELETE",
       });
       if (!response.ok) {

@@ -13,20 +13,15 @@ import {
 import type { Folder, Note, NoteComment } from "@/lib/types";
 import { buildExplorerTree } from "@/lib/explorer";
 
-export const dynamicParams = false;
-export async function generateStaticParams() {
-  return [];
-}
-
 export default async function CollectionDetailPage({
   params,
   searchParams,
 }: {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { id } = params;
-  const currentSearchParams = searchParams;
+  const { id } = await params;
+  const currentSearchParams = await searchParams;
 
   const requestedFolderId =
     typeof currentSearchParams.folder === "string" ? currentSearchParams.folder : undefined;

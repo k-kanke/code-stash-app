@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { apiFetch } from "@/lib/client-api";
 
 export type ExplorerNode = {
   id: string;
@@ -215,7 +214,7 @@ export function ExplorerTree({
     }
     try {
       setFolderLoading(true);
-      const response = await apiFetch("/api/collections?resource=folder", {
+      const response = await fetch("/api/collections?resource=folder", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -251,7 +250,7 @@ export function ExplorerTree({
     }
     try {
       setNoteLoading(true);
-      const response = await apiFetch("/api/notes", {
+      const response = await fetch("/api/notes", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -293,7 +292,7 @@ export function ExplorerTree({
       setDeleteLoading(true);
       let response: Response;
       if (pendingDelete.type === "folder") {
-        response = await apiFetch("/api/collections?resource=folder", {
+        response = await fetch("/api/collections?resource=folder", {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
@@ -304,7 +303,7 @@ export function ExplorerTree({
           }),
         });
       } else {
-        response = await apiFetch("/api/notes?resource=note", {
+        response = await fetch("/api/notes?resource=note", {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
@@ -364,7 +363,7 @@ export function ExplorerTree({
       setRenameLoading(true);
       let response: Response;
       if (target.type === "folder") {
-        response = await apiFetch("/api/collections?resource=folder", {
+        response = await fetch("/api/collections?resource=folder", {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -376,7 +375,7 @@ export function ExplorerTree({
           }),
         });
       } else {
-        response = await apiFetch("/api/notes", {
+        response = await fetch("/api/notes", {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",

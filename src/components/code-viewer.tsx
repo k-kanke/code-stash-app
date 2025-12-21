@@ -10,7 +10,6 @@ import "prismjs/components/prism-python";
 import "prismjs/components/prism-json";
 import "prismjs/components/prism-bash";
 import "prismjs/themes/prism.css";
-import { apiFetch } from "@/lib/client-api";
 
 const languageMap: Record<string, string> = {
   typescript: "typescript",
@@ -89,7 +88,7 @@ export function CodeViewer({ code, language, noteId }: Props) {
 
     try {
       setIsSaving(true);
-      const response = await apiFetch("/api/notes", {
+      const response = await fetch("/api/notes", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
