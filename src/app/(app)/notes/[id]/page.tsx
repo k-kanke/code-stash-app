@@ -12,6 +12,10 @@ import {
 } from "@/lib/api";
 import { buildExplorerTree } from "@/lib/explorer";
 
+export async function generateStaticParams() {
+  return [];
+}
+
 export default async function NoteDetailPage({
   params,
   searchParams,
