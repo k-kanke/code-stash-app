@@ -9,6 +9,7 @@ on:
       - "package-lock.json"
       - "next.config.ts"
       - "tsconfig.json"
+      - ".github/workflows/build-and-deploy-code-stash-app-dev.yml"
   workflow_dispatch:
 concurrency:
   group: "deploy-code-stash-app-dev"
