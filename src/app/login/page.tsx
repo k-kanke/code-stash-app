@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { apiFetch } from "@/lib/client-api";
 
 type Mode = "login" | "register";
 
@@ -32,7 +33,7 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
-      const response = await fetch("/api/auth/login", {
+      const response = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

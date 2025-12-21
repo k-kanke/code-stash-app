@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import type { NoteComment } from "@/lib/types";
+import { apiFetch } from "@/lib/client-api";
 
 const ROOT_BUCKET = "__root__";
 
@@ -130,7 +131,7 @@ export function NoteComments({ noteId, initialComments }: Props) {
     }
     try {
       setSubmitting(true);
-      const response = await fetch(`/api/notes?resource=comment&noteId=${noteId}`, {
+      const response = await apiFetch(`/api/notes?resource=comment&noteId=${noteId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -165,7 +166,7 @@ export function NoteComments({ noteId, initialComments }: Props) {
     }
     try {
       setReplySubmitting(true);
-      const response = await fetch(`/api/notes?resource=comment&noteId=${noteId}`, {
+      const response = await apiFetch(`/api/notes?resource=comment&noteId=${noteId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -224,19 +225,16 @@ export function NoteComments({ noteId, initialComments }: Props) {
     }
 
     try {
-      const response = await fetch(
-        `/api/notes?resource=comment&commentId=${editingId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            body: editDraft.body,
-            lineStart: parseLine(editDraft.lineStart) ?? null,
-            lineEnd: parseLine(editDraft.lineEnd) ?? null,
-            resolved: editResolved,
-          }),
-        },
-      );
+      const response = await apiFetch(`/api/notes?resource=comment&commentId=${editingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          body: editDraft.body,
+          lineStart: parseLine(editDraft.lineStart) ?? null,
+          lineEnd: parseLine(editDraft.lineEnd) ?? null,
+          resolved: editResolved,
+        }),
+      });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error ?? "Failed to update comment");
@@ -253,7 +251,7 @@ export function NoteComments({ noteId, initialComments }: Props) {
 
   async function handleToggleResolved(comment: NoteComment) {
     try {
-      const response = await fetch(`/api/notes?resource=comment&commentId=${comment.id}`, {
+      const response = await apiFetch(`/api/notes?resource=comment&commentId=${comment.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resolved: !comment.resolved }),
@@ -275,10 +273,9 @@ export function NoteComments({ noteId, initialComments }: Props) {
   async function handleDelete(commentId: string) {
     if (!confirm("このコメントを削除しますか？")) return;
     try {
-      const response = await fetch(
-        `/api/notes?resource=comment&commentId=${commentId}`,
-        { method: "DELETE" },
-      );
+      const response = await apiFetch(`/api/notes?resource=comment&commentId=${commentId}`, {
+        method: "DELETE",
+      });
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         throw new Error(data?.error ?? "Failed to delete comment");

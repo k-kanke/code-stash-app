@@ -21,6 +21,7 @@ env:
   AWS_OIDC_ROLE_NAME: "code-stash-frontend-deploy"
   S3_BUCKET_NAME: "code-stash-frontend"
   DISTRIBUTION_ID: "E15JLYYHDBZG7A"
+  NEXT_PUBLIC_CODE_STASH_SERVER_URL: "http://localhost:8085"
 jobs:
   deploy:
     runs-on: ubuntu-latest

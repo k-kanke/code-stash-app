@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { apiFetch } from "@/lib/client-api";
 
 type DeviceCodeStatus = {
   client_name: string;
@@ -63,7 +64,7 @@ export function DeviceVerificationForm({ initialUserCode = "" }: Props) {
           ? `/api/device/verify?user_code=${encodeURIComponent(normalizedCode)}`
           : "/api/device/verify";
 
-      const response = await fetch(endpoint, {
+      const response = await apiFetch(endpoint, {
         method: mode,
         headers:
           mode === "POST"
