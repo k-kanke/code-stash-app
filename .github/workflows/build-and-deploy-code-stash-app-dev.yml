@@ -35,7 +35,7 @@ jobs:
           role-to-assume: arn:aws:iam::941377161034:role/${{ env.AWS_OIDC_ROLE_NAME }}
           aws-region: ap-northeast-1
       - name: Build
-        run: npm ci && next build && next export
+        run: npm ci && npm run build
       - name: Upload
         run: aws s3 sync out/ s3://${{ env.S3_BUCKET_NAME }} --delete \
              --cache-control "public,max-age=31536000,immutable" \
