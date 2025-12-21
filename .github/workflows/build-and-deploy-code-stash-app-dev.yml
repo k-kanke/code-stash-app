@@ -1,0 +1,47 @@
+name: '[dev] Deploy code-stash-app S3'
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.ts"
+      - "tsconfig.json"
+  workflow_dispatch:
+concurrency:
+  group: "deploy-code-stash-app-dev"
+  cancel-in-progress: true
+permissions:
+  id-token: write
+  contents: read
+env:
+  AWS_OIDC_ROLE_NAME: "code-stash-frontend-deploy"
+  S3_BUCKET_NAME: "code-stash-frontend"
+  DISTRIBUTION_ID: "E15JLYYHDBZG7A"
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::941377161034:role/${{ env.AWS_OIDC_ROLE_NAME }}
+          aws-region: ap-northeast-1
+      - name: Build
+        run: npm ci && next build && next export
+      - name: Upload
+        run: aws s3 sync out/ s3://${{ env.S3_BUCKET_NAME }} --delete \
+             --cache-control "public,max-age=31536000,immutable" \
+             --exclude "*.map"
+      - name: Upload index
+        run: aws s3 cp out/index.html s3://${{ env.S3_BUCKET_NAME }}/index.html \
+             --cache-control "public,max-age=0,must-revalidate"
+      - name: Invalidation
+        run: aws cloudfront create-invalidation --distribution-id ${{ env.DISTRIBUTION_ID }} --paths "/*"
